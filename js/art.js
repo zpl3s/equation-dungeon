@@ -60,3 +60,30 @@ vodyanoy:{attack:'slam, splashing water',spawn:'rising out of the water'},yaga:{
 gorynych:{attack:'breathing fire'},koschei:{attack:'sword slash',spawn:'stepping out of darkness'},kostyanoy:{attack:'sword slash'},solovey:{attack:'deafening whistle, shockwave'},
 };
 const animAct=(id,kind)=>{const o=ANIM_FOR[id];return o&&kind in o?o[kind]:ANIM_ACT[kind]};
+
+// ---------- кремль: PixelLab → Create image Pro (стиль — poludnitsa.png, палитра — palette.png; церковь и палаты — палитра + синие и белые) ----------
+// земля — Create tiles Pro: isometric, tile size 40, view angle 30°, depth 0. Основа сохраняется в assets/buildings/<id>.png
+const KREM_PRE='isometric game building, 2:1 dimetric view from above at 30 degrees, one corner pointing towards the viewer';
+const KREM_SUF='dark slavic folk horror, muted earthy colors, pixel art, transparent background, no ground, no people';
+const KREM={
+palaty:{size:128,p:'Tsar\'s stone palace (tsarskie palaty) of 17th century Russia: two-storey whitewashed stone chambers with small arched windows in carved stone frames, steep hipped roof of dark scaled shingles, a tall covered external staircase porch (krasnoe kryltso) with a tent roof at the front'},
+tserkov:{size:128,p:'white stone Russian Orthodox church in the style of Suzdal: white limestone walls with blind arcades and narrow slit windows, onion domes painted deep blue and covered with small golden stars, golden crosses on top'},
+izba:{size:85,p:'old russian log izba used as a reading house: dark weathered horizontal logs, carved wooden window frames (nalichniki), steep wooden shingle roof, small porch with steps, a wooden sign with an open book over the door'},
+kapishche:{size:64,p:'pagan slavic shrine (kapishche): a tall carved wooden idol of Perun with a stern bearded face in the center, a ring of grey standing stones around it, a small fire burning at the idol\'s feet'},
+kuznica:{size:85,p:'old russian village blacksmith forge (kuznitsa): low dark log workshop with an open front, glowing orange furnace inside, stone chimney with smoke, anvil and a water barrel outside'},
+torg:{size:85,p:'small old russian market (torg): two or three wooden trading stalls with plank counters and shingle or canvas awnings, barrels, sacks of grain, clay jugs, rolls of cloth'},
+znaharka:{size:64,p:'herbalist witch-healer hut: small crooked log hut with a sagging mossy thatched roof, bundles of dried herbs hanging under the eaves, an animal skull on a fence post, faint green glow from a tiny window'},
+banya:{size:64,p:'small russian bathhouse (banya): tiny dark log cabin with a low turf-covered roof, a small smoking stone chimney, a woodpile and a wooden bucket beside the low door'},
+korchma:{size:85,p:'russian tavern (korchma): large two-storey dark log house with a wide covered porch, a hanging wooden sign with a jug, warm orange light in small windows, barrels by the entrance'},
+wall:{n:'Прясло стены',size:64,note:'Стена должна идти сверху-слева вниз-вправо «\\». На двух других сторонах кремля игра отразит её сама.',
+  p:'straight segment of a wooden russian kremlin fortress wall made of rough-hewn dark horizontal logs (gorodni), a narrow roofed fighting walkway on top covered with wooden shingles, small loopholes; the segment runs diagonally from the top-left down to the bottom-right, both ends cut straight'},
+tower_corner:{n:'Угловая башня',size:85,p:'corner tower of a wooden russian kremlin: tall square tower of dark horizontal logs, the upper fighting gallery wider with an overhang and loopholes, steep pyramidal tent roof of wooden shingles with a small watch turret and a dark flag'},
+tower_small:{n:'Малая башня',size:64,p:'small wall tower of a wooden russian kremlin: square tower of dark horizontal logs only a little taller than the wall, overhanging upper fighting gallery with loopholes, low four-sided shingle roof'},
+tower_gate:{n:'Проезжая башня',size:85,note:'Проезд нужен на левой грани: так ворота смотрят наружу вдоль дороги. На сторонах «/» игра отразит башню сама.',
+  p:'gate tower of a wooden russian kremlin: massive square tower of dark horizontal logs, a big arched gateway passage through its lower part on the LEFT face with heavy open plank doors, a small icon above the gate, tall tent roof of wooden shingles'},
+g_kreml:{n:'Земля в кремле',tile:1,p:'trodden dark earth with sparse dry grass and small stones'},
+g_most:{n:'Мостовая',tile:1,note:'Улицы от ворот и площадь в центре кремля.',p:'old wooden pavement made of half logs laid side by side'},
+g_road:{n:'Дорога',tile:1,note:'Дороги из ворот и тропы в зоны.',p:'muddy dirt road with wheel ruts'},
+g_posad:{n:'Посад',tile:1,note:'Полоса вокруг стен.',p:'dark trampled meadow grass with dirt patches'},
+};
+const kremText=id=>{const k=KREM[id];return k.tile?`1). ${k.p}. Dark slavic folk horror, muted earthy colors, pixel art`:`${KREM_PRE}. ${k.p}. ${KREM_SUF}`};

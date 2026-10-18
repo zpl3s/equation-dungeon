@@ -15,7 +15,7 @@
 .stage{position:relative;width:320px;height:240px;max-width:100%;overflow:hidden}
 .pv canvas{width:320px;height:240px}
 .live{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);line-height:0}
-.cands{display:flex;flex-wrap:wrap;gap:8px}.cand{cursor:pointer;border:2px solid transparent;max-width:100%}.cand:hover{border-color:var(--gold)}
+.cands{display:flex;flex-wrap:wrap;gap:8px}.cand{cursor:pointer;border:2px solid transparent;max-width:100%}.cand:hover{border-color:var(--gold)}.cand.on{border-color:var(--ok)}
 .tag{position:absolute;left:6px;top:6px;font:9px 'Press Start 2P',monospace;background:#000b;padding:4px 6px}
 .done .tag{color:var(--ok)}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
@@ -35,7 +35,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
 <body>
 <div id="app">
   <div class="panel"><h1>Мастерская спрайтов</h1>
-    <p>Здесь собрана вся нечисть, которую нужно нарисовать. У каждого существа есть готовые промпты для PixelLab: для самого спрайта, для анимации покоя и для атаки. Загруженные картинки сразу сохраняются в игру. Открывай эту страницу двойным кликом по <code>studio.html</code> в папке проекта, лучше в Chrome.</p></div>
+    <p>Здесь собраны кремль и вся нечисть, которую нужно нарисовать. У каждого существа есть готовые промпты для PixelLab: для самого спрайта, для анимации покоя и для атаки. Загруженные картинки сразу сохраняются в игру. Открывай эту страницу двойным кликом по <code>studio.html</code> в папке проекта, лучше в Chrome.</p></div>
 
   <div class="panel how"><h2>Как генерировать в PixelLab</h2><ol>
     <li><b>Спрайт.</b> Открой <a class="gold" href="https://www.pixellab.ai/create" target="_blank" rel="noopener">pixellab.ai → Create</a>, инструмент <b>Create image</b>, режим <b>Pro</b>. Он выдаёт пачку вариантов: на холсте 64×64 — 16 штук, на 96×96 — 4. Пачка стоит 10 генераций. Скачай лист целиком и перетащи на строку «Спрайт»: мастерская покажет сетку, кликни нужный вариант.
@@ -50,6 +50,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
       Дешёвый вариант — режим PixFlux: 1 генерация = 1 картинка. Camera view — side, Direction — как в карточке, Transparent background — включить, Negative description — <button data-neg>Копировать</button>.</li>
     <li><b>Анимации.</b> Игра сама оживляет любой спрайт: дыхание, парение, замах, вспышку от попадания, рассыпание при гибели, появление. Кнопки под превью всё это показывают. По-настоящему стоит рисовать только три анимации: «Покой», «Атака» и «Появление»; попадание и гибель остаются кодовыми. Покадровые анимации в PixelLab платные. Загружать их можно в нужную строку (PNG-лист, GIF или все кадры разом).</li>
     <li><b>Если генерирую я</b> (через PixelLab MCP), все варианты появятся прямо в карточке в блоке «Варианты от Claude». Кликни тот, что берём за основу. Если существо смотрит не туда, нажми «⇄ Отразить»: нечисть должна смотреть влево, на стрельца.</li>
+    <li><b>Кремль.</b> Во вкладке «Кремль» лежат варианты зданий, стен, башен и земли. Клик по варианту — это основа, она сохраняется в <code>assets/buildings</code> и сразу видна на карте кремля сверху. У земли отмечай несколько плиток и жми «Сохранить набор»: игра будет чередовать их.</li>
     <li>Открой игру (<code>index.html</code>): спрайты и анимации уже там. Загрузишь несколько — скажи мне, я выложу их на сайт.</li>
   </ol></div>
 
@@ -96,13 +97,15 @@ async function scan(){granted=await perm(false);if(!granted)return;for await(con
   if(m&&ART[m[1]]){try{setPic(key(m[1],m[2]||'sprite'),await createImageBitmap(await h.getFile()))}catch(e){}}}
   // варианты, которые сгенерировал Claude: assets/candidates/<id>/*.png
   if(root){try{const cd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('candidates');
-    for await(const[id,h]of cd.entries()){if(h.kind!=='directory'||!ART[id])continue;const list=[];
+    for await(const[id,h]of cd.entries()){if(h.kind!=='directory'||!ART[id]&&!KREM[id])continue;const list=[];
       for await(const[n,f]of h.entries())if(/\.png$/i.test(n))list.push([n,await createImageBitmap(await f.getFile())]);
-      cand[id]=list.sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(x=>x[1])}}catch(e){}}}
+      cand[id]=list.sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(x=>x[1])}}catch(e){}
+    try{const bd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('buildings');
+      for await(const[n,f]of bd.entries()){const m=n.match(/^(.+)\.png$/);if(m&&KREM[m[1]])setKrem(m[1],canvasOf(await createImageBitmap(await f.getFile())))}}catch(e){}}}
 function probe(){Object.keys(ART).forEach(id=>kinds(id).forEach(k=>{const n=key(id,k);if(pic[n])return;const im=new Image();
   im.onload=()=>{if(!pic[n]){setPic(n,im);renderCard(id);renderBar()}};im.src=`assets/sprites/${n}.png`+(location.protocol==='file:'?'':`?${Date.now()}`)}))}
 // новые файлы в папке подхватываем, когда возвращаешься на вкладку
-window.addEventListener('focus',async()=>{if(dir)await scan();probe();renderBar()});
+window.addEventListener('focus',async()=>{if(dir)await scan();probe();renderBar();if(tab==='krem')kRefresh()});
 async function store(name,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
   if(dir&&await perm(true)){const fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(blob);await ws.close();return`Сохранено: assets/sprites/${name}`}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return`Скачано как ${name} — перенеси в assets/sprites`}
@@ -188,26 +191,72 @@ function cardHTML(id){const a=ART[id],c=CR[id];
   ${kinds(id).map(k=>slotHTML(id,k)).join('')}
   <div class="small" id="st_${id}"></div></div></div>`}
 function renderCard(id){const el=$('#c_'+id);if(!el)return;const st=$('#st_'+id).innerHTML;el.outerHTML=cardHTML(id);$('#st_'+id).innerHTML=st;paintPreview(id);paintCands(id)}
-function renderBar(){const ids=Object.keys(ART),n=ids.length,k=ids.filter(id=>pic[id]).length,an=ids.reduce((s,id)=>s+kinds(id).length-1,0),ak=ids.reduce((s,id)=>s+kinds(id).filter(x=>x!=='sprite'&&pic[key(id,x)]).length,0);
-  $('#bar').innerHTML=`<span class="px small">Спрайтов ${k} из ${n} · анимаций ${ak} из ${an}</span><div class="bar m" style="flex:1"><i style="width:${(k+ak)/(n+an)*100}%"></i></div>
+function renderBar(){const tabs=`<button data-tab="krem" class="${tab==='krem'?'on':''}">Кремль</button><button data-tab="cr" class="${tab==='cr'?'on':''}">Нечисть</button>`;
+  if(tab==='krem'){const ids=KREM_IDS(),k=ids.filter(id=>KIM[id]).length;
+    $('#bar').innerHTML=`${tabs}<span class="px small">Основ выбрано ${k} из ${ids.length}</span><div class="bar m" style="flex:1"><i style="width:${k/ids.length*100}%"></i></div>`;return}
+  const ids=Object.keys(ART),n=ids.length,k=ids.filter(id=>pic[id]).length,an=ids.reduce((s,id)=>s+kinds(id).length-1,0),ak=ids.reduce((s,id)=>s+kinds(id).filter(x=>x!=='sprite'&&pic[key(id,x)]).length,0);
+  $('#bar').innerHTML=`${tabs}<span class="px small">Спрайтов ${k} из ${n} · анимаций ${ak} из ${an}</span><div class="bar m" style="flex:1"><i style="width:${(k+ak)/(n+an)*100}%"></i></div>
   <button data-f="all" class="${filter==='all'?'on':''}">Все</button><button data-f="missing" class="${filter==='missing'?'on':''}">Не готовы</button>`}
 function renderFolder(){$('#folder').innerHTML=!fsOK?`<p class="gold">Этот браузер не умеет сохранять прямо в папку (это умеет Chrome). Файлы будут скачиваться с правильными именами — перенеси их в <code>equation-dungeon/assets/sprites</code>.</p>`:
   dir&&!granted?`<div class="row"><span>Папка <b class="gold">${(root||dir).name}</b> подключена, но браузер просит подтвердить доступ.</span><button class="main" data-grant>Дать доступ</button></div>`:
   dir?`<div class="row"><span>Подключена папка <b class="gold">${(root||dir).name}</b>${root?'':' — варианты от Claude не видны, лучше выбрать всю папку equation-dungeon'}</span><button data-pick>Выбрать другую</button></div>`:
   `<div class="row"><span>Один раз выбери папку игры <code>equation-dungeon</code>: мастерская будет сама сохранять картинки и покажет варианты, которые сгенерирую я.</span><button class="main" data-pick>Выбрать папку</button></div>`}
-function renderAll(){renderFolder();renderBar();const ready=id=>kinds(id).every(k=>pic[key(id,k)]);
+function renderAll(){renderFolder();renderBar();if(tab==='krem')return renderKrem();const ready=id=>kinds(id).every(k=>pic[key(id,k)]);
   $('#list').innerHTML=GROUPS.map(g=>{const ids=g.ids.filter(id=>filter==='all'||!ready(id));return ids.length?`<div class="panel"><h2>${g.name}</h2>${ids.map(cardHTML).join('')}</div>`:''}).join('')||'<div class="panel"><p class="ok">Вся нечисть готова!</p></div>';
   Object.keys(ART).forEach(id=>{paintPreview(id);paintCands(id)})}
 
+// ---------- раздел «Кремль»: здания, стены, земля; основа → assets/buildings/<id>.png ----------
+let tab='krem';try{tab=localStorage.getItem('studio.tab')||'krem'}catch(e){}
+const KGROUPS=[{name:'Здания',ids:BLD.map(b=>b.id)},{name:'Стены и башни',ids:FORT},{name:'Земля',ids:Object.keys(GROUND).map(k=>'g_'+k)}];
+const kName=id=>(BLD.find(b=>b.id===id)||{}).name||KREM[id].n;
+const ksel={}; // отмеченные плитки земли: id → номера вариантов
+onKremLoad=()=>{if(tab==='krem')kRefresh()};
+async function kStore(id,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png')),name=id+'.png';
+  if(root&&await perm(true)){const d=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('buildings',{create:true}),fh=await d.getFileHandle(name,{create:true}),ws=await fh.createWritable();
+    await ws.write(blob);await ws.close();return`Сохранено: assets/buildings/${name}`}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return`Скачано как ${name} — перенеси в assets/buildings`}
+async function kPick(id,src){const c=canvasOf(src);setKrem(id,c);let t;try{t=`<span class="ok">${await kStore(id,c)}</span>`}catch(e){t=`<span class="bad">Не сохранилось: ${e.message}</span>`}
+  const el=$('#k_'+id);if(el)el.outerHTML=kCardHTML(id);kPaint(id);kCands(id);kRefresh();$('#kst_'+id).innerHTML=t}
+function kFlip(id){const k=KIM[id];if(!k)return;const c=document.createElement('canvas');c.width=k.im.width;c.height=k.im.height;const g=c.getContext('2d');g.translate(c.width,0);g.scale(-1,1);g.drawImage(k.im,0,0);kPick(id,c)}
+function kSaveSet(id){const list=(ksel[id]||[]).map(i=>cand[id][i]);if(!list.length)return $('#kst_'+id).innerHTML='<span class="bad">Сначала отметь плитки</span>';
+  const c=document.createElement('canvas');c.width=MAP.TW*list.length;c.height=MAP.TH;const g=c.getContext('2d');list.forEach((b,i)=>g.drawImage(b,0,0,MAP.TW,MAP.TH,i*MAP.TW,0,MAP.TW,MAP.TH));kPick(id,c)}
+function kCardHTML(id){const K=KREM[id],t=!!K.tile,has=!!KIM[id],n=cand[id]&&cand[id].length;
+  return`<div class="card ${has?'done':''}" id="k_${id}"><div class="pv"><canvas id="kpv_${id}" width="256" height="192" style="width:256px;height:192px"></canvas>
+    <div class="row" style="margin-top:6px;gap:6px"><span class="small ${has?'ok':'muted'}">${has?'✓ основа выбрана':'основа не выбрана — на карте старый арт'}</span>${has&&!t?`<button data-kflip="${id}">⇄ Отразить</button>`:''}</div></div>
+  <div class="info"><div class="row"><span class="px small">${kName(id)}</span><span class="small muted">файл buildings/${id}.png · ${t?'плитки 40×20':`холст ${K.size}×${K.size}`}</span></div>
+  ${K.note?`<div class="small gold">${K.note}</div>`:''}
+  ${n?`<div class="slot"><div class="px small gold">${t?'Варианты от Claude — отметь плитки для набора':'Варианты от Claude — кликни, какой берём за основу'}</div><div class="cands" id="kcd_${id}"></div>
+    ${t?`<div class="row"><button class="main" data-kset="${id}">Сохранить набор</button><span class="small muted" id="kn_${id}">отмечено ${(ksel[id]||[]).length}</span></div>`:''}</div>`:'<div class="small muted">Вариантов не видно. Подключи всю папку equation-dungeon.</div>'}
+  <div class="slot"><div class="row"><span class="px small">Промпт</span><span style="flex:1"></span><button data-kcopy="${id}">Копировать</button></div><textarea readonly rows="3">${kremText(id)}</textarea></div>
+  <div class="small" id="kst_${id}"></div></div></div>`}
+// превью основы: здание крупно, земля — заплаткой из плиток набора
+function kPaint(id){const c=$('#kpv_'+id);if(!c)return;const g=c.getContext('2d'),k=KIM[id];g.imageSmoothingEnabled=false;g.fillStyle='#120d09';g.fillRect(0,0,c.width,c.height);if(!k)return;
+  if(k.n){for(let a=0;a<6;a++)for(let b=0;b<6;b++){const x=c.width/2+(a-b)*MAP.TW/2,y=36+(a+b)*MAP.TH/2;g.drawImage(k.im,hash(a,b)%k.n*MAP.TW,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH)}return}
+  const w=k.x1-k.x0+1,h=k.y1-k.y0+1,sc=Math.max(1,Math.floor(Math.min((c.width-16)/w,(c.height-16)/h)));
+  g.drawImage(k.im,k.x0,k.y0,w,h,Math.round((c.width-w*sc)/2),Math.round((c.height-h*sc)/2),w*sc,h*sc)}
+function kCands(id){const box=$('#kcd_'+id);if(!box)return;box.innerHTML='';const t=!!KREM[id].tile;
+  cand[id].forEach((b,i)=>{const sc=t?3:2,c=document.createElement('canvas'),g=c.getContext('2d');c.width=b.width*sc;c.height=b.height*sc;c.className='cand'+(t&&(ksel[id]||[]).includes(i)?' on':'');
+    g.imageSmoothingEnabled=false;g.fillStyle='#120d09';g.fillRect(0,0,c.width,c.height);g.drawImage(b,0,0,c.width,c.height);
+    c.onclick=()=>{if(!t)return kPick(id,b);const s=ksel[id]||(ksel[id]=[]),k=s.indexOf(i);if(k<0)s.push(i);else s.splice(k,1);c.classList.toggle('on',k<0);$('#kn_'+id).textContent='отмечено '+s.length};
+    box.appendChild(c)})}
+// весь кремль, как на карте игры (все зоны открыты)
+function kMap(){const c=$('#kmap');if(!c||!ATL.complete)return;MB=null;buildMap(()=>true);c.getContext('2d').drawImage(MB.base,0,0)}
+function kRefresh(){kMap();renderBar();KREM_IDS().forEach(id=>{const el=$('#k_'+id);if(el&&el.classList.contains('done')!==!!KIM[id]){el.outerHTML=kCardHTML(id);kCands(id)}kPaint(id)})}
+function renderKrem(){$('#list').innerHTML=`<div class="panel"><h2>Кремль целиком</h2><p class="small muted">Так он выглядит на карте. Где основа ещё не выбрана, стоит старый арт.</p><canvas id="kmap" width="${MAP.W}" height="${MAP.H}" style="width:100%;height:auto"></canvas></div>`+
+  KGROUPS.map(g=>`<div class="panel"><h2>${g.name}</h2>${g.ids.map(kCardHTML).join('')}</div>`).join('');
+  KREM_IDS().forEach(id=>{kPaint(id);kCands(id)});kMap()}
+
 document.addEventListener('click',e=>{const t=e.target,d=t.dataset;
-  if(d.copy)copy(textFor(d.copy,d.k));else if(t.hasAttribute('data-neg'))copy(ART_NEG);else if(t.hasAttribute('data-pick'))pickDir();
+  if(d.tab){tab=d.tab;try{localStorage.setItem('studio.tab',tab)}catch(e){}renderAll()}
+  else if(d.kcopy)copy(kremText(d.kcopy));else if(d.kflip)kFlip(d.kflip);else if(d.kset)kSaveSet(d.kset);
+  else if(d.copy)copy(textFor(d.copy,d.k));else if(t.hasAttribute('data-neg'))copy(ART_NEG);else if(t.hasAttribute('data-pick'))pickDir();
   else if(d.flip)flip(d.flip);else if(t.hasAttribute('data-grant'))perm(true).then(async()=>{await scan();renderAll()});
   else if(d.fx){const c=spr(d.id);if(!c)return;if(d.fx==='atk')attackFx(c);else if(d.fx==='hurt')hurtFx(c);else if(d.fx==='spawn')spawnFx(c);else{c._die=performance.now();setTimeout(()=>{c._die=0},1500)}}else if(d.f){filter=d.f;renderAll()}});
 document.addEventListener('change',e=>{const d=e.target.dataset;if(d.up)onFiles(d.up,d.k,e.target.files)});
 document.addEventListener('dragover',e=>{const s=e.target.closest('.slot');if(s){e.preventDefault();s.classList.add('drag')}});
 document.addEventListener('dragleave',e=>{const s=e.target.closest('.slot');if(s)s.classList.remove('drag')});
 document.addEventListener('drop',e=>{const s=e.target.closest('.slot');if(!s)return;e.preventDefault();s.classList.remove('drag');onFiles(s.dataset.id,s.dataset.k,e.dataTransfer.files)});
-ATL.addEventListener('load',()=>Object.keys(ART).forEach(id=>paintPreview(id)));
+ATL.addEventListener('load',()=>{Object.keys(ART).forEach(id=>paintPreview(id));if(tab==='krem')kMap()});
 (async()=>{if(fsOK){try{dir=await kv('dir')||null;root=await kv('root')||null;if(dir)await scan()}catch(e){dir=null}}renderAll();probe()})();
 </script>
 </body>

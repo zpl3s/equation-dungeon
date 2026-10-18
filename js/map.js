@@ -1,7 +1,7 @@
 'use strict';
 // ---------- изометрическая карта: кремль в центре, зоны секторами вокруг ----------
-// сетка больше окна: лес уходит за края, кремль в центре
-const MAP={N:49,TW:40,TH:20,C:24.5,W:880,H:560};
+// сетка больше окна: лес уходит за края, кремль в центре; R — полуразмер кремля в клетках
+const MAP={N:49,TW:40,TH:20,C:24,W:880,H:560,R:7};
 const ATL=new Image();ATL.src='assets/env/atlas.png';
 function drawA(g,name,x,y,sc=1){const a=ATLAS[name];if(!a||!ATL.complete)return;g.drawImage(ATL,a[0],a[1],a[2],a[3],Math.round(x-a[4]*sc),Math.round(y-a[5]*sc),a[2]*sc,a[3]*sc)}
 const VAR={};const variants=p=>VAR[p]||(VAR[p]=Object.keys(ATLAS).filter(k=>k.startsWith(p+'_')));
@@ -11,14 +11,31 @@ const gp=(i,j)=>[MAP.W/2+(i-j)*MAP.TW/2,MAP.H/2+(i+j-2*MAP.C)*MAP.TH/2]; // то
 const onScreen=(x,y,m=60)=>x>-m&&x<MAP.W+m&&y>-m&&y<MAP.H+m*2;
 const RAY=k=>Math.PI/2+k*Math.PI/4; // направление на зону k (0 — вниз, дальше по часовой)
 
+// ---------- арт кремля из мастерской: assets/buildings/<id>.png; пока его нет — атлас и процедурные стены ----------
+// стена рисуется идущей «\» (сверху-слева вниз-вправо), для сторон «/» отражается; g_* — ленты плиток земли 40×20
+const FORT=['wall','tower_corner','tower_small','tower_gate'],GROUND={kreml:'t_kremlin',most:'t_road',road:'t_road',posad:'t_posad'};
+const KREM_IDS=()=>[...BLD.map(b=>b.id),...FORT,...Object.keys(GROUND).map(k=>'g_'+k)];
+const KIM={};let onKremLoad=null;
+function prepK(id,im){const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
+  if(id.startsWith('g_'))return{im:c,n:Math.max(1,Math.round(c.width/MAP.TW))};
+  let x0=1e9,y0=1e9,x1=-1,y1=-1;
+  try{const d=g.getImageData(0,0,c.width,c.height).data;
+    for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>=10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  }catch(e){x0=y0=0;x1=c.width-1;y1=c.height-1} // file:// не даёт читать пиксели — берём холст целиком
+  if(x1<0)return false;return{im:c,x0,y0,x1,y1,ax:Math.round((x0+x1+1)/2),ay:y1+1}}
+function kimg(id){if(!(id in KIM)){KIM[id]=null;const im=new Image();im.onload=()=>{KIM[id]=prepK(id,im);onKremLoad&&onKremLoad()};im.onerror=()=>{KIM[id]=false};im.src=`assets/buildings/${id}.png`}return KIM[id]}
+const setKrem=(id,c)=>{KIM[id]=c?prepK(id,c):false}; // мастерская подставляет выбранное сразу
+// картинка по якорю (низ по центру); flip — зеркально
+function drawK(g,k,x,y,flip,dy=0){x=Math.round(x);y=Math.round(y-k.ay+dy);if(!flip)return g.drawImage(k.im,x-k.ax,y);g.save();g.translate(x,0);g.scale(-1,1);g.drawImage(k.im,-k.ax,y);g.restore()}
+
 function cellInfo(i,j){
-  const dx=i+.5-MAP.C,dy=j+.5-MAP.C,r=Math.hypot(dx,dy),h=rnd(hash(i,j))();
-  if(Math.abs(dx)<4&&Math.abs(dy)<4)return{z:-1,g:'kremlin'};
+  const dx=i+.5-MAP.C,dy=j+.5-MAP.C,R=MAP.R,ax=Math.abs(dx),ay=Math.abs(dy),m=Math.max(ax,ay),r=Math.hypot(dx,dy),h=rnd(hash(i,j))();
+  if(m<R)return{z:-1,g:ax<1||ay<1||ax<2&&ay<2?'most':'kreml'}; // внутри стен: мостовая крестом от ворот и площадь в центре
+  if(m<R+2.5)return{z:-2,g:ax<1||ay<1?'road':'posad'};         // посад вокруг стен, дороги из ворот
   const sx=(dx-dy)*MAP.TW/2,sy=(dx+dy)*MAP.TH/2,a=Math.atan2(sy,sx)+(h-.5)*.3;
   const zi=Math.floor(((a-Math.PI/2+Math.PI/8)%(2*Math.PI)+4*Math.PI)%(2*Math.PI)/(Math.PI/4));
   const perp=k=>{const t=RAY(k);return{along:sx*Math.cos(t)+sy*Math.sin(t),d:Math.abs(sx*Math.sin(t)-sy*Math.cos(t))/MAP.TW}};
-  if(r<8.6){for(let k=0;k<8;k++){const p=perp(k);if(p.along>0&&p.d<.45)return{z:r<6.3?-2:zi,g:'road'}}}
-  if(r<6.3)return{z:-2,g:'posad'};
+  if(r<R+7){for(let k=0;k<8;k++){const p=perp(k);if(p.along>0&&p.d<.45)return{z:zi,g:'road'}}} // тропы от посада в зоны
   const Z=ZONES[zi];let g=Z.ground;
   if(Z.water&&perp(zi).d<1.1+h*.4)g='water';
   return{z:zi,g};
@@ -28,7 +45,7 @@ let MB=null; // {cells, base canvas, rects}
 function buildMap(open){
   const cells=[],objs=[],rects=[];
   for(let i=0;i<MAP.N;i++)for(let j=0;j<MAP.N;j++){
-    const c=cellInfo(i,j),r=rnd(hash(i,j)*7+3),v=variants('t_'+c.g);c.i=i;c.j=j;c.t=v[Math.floor(r()*v.length)];cells.push(c);
+    const c=cellInfo(i,j),r=rnd(hash(i,j)*7+3);c.i=i;c.j=j;c.v=r();cells.push(c);
     if(c.g==='road'||c.g==='water'||c.z===-1)continue;
     const [x,y]=gp(i+.5,j+.5);if(!onScreen(x,y))continue;const ox=()=>(r()-.5)*16,oy=()=>(r()-.5)*7;
     const trees=c.z===-2?{bush:.05}:ZONES[c.z].trees;
@@ -36,22 +53,37 @@ function buildMap(open){
     if(c.z>=0&&ZONES[c.z].mounds&&r()<.08){const px=x+ox(),py=y+oy();objs.push({y:py,f:g=>mound(g,px,py)})}
     if(c.z>=0&&ZONES[c.z].rocks&&r()<.14){const px=x+ox(),py=y+oy(),s=.7+r()*.6;objs.push({y:py,f:g=>rock(g,px,py,s)})}
   }
-  // частокол с воротами посередине каждой стены и башнями по углам
-  const k0=MAP.C-4,k1=MAP.C+4,K=[[k0,k0],[k1,k0],[k1,k1],[k0,k1]];
-  for(let e=0;e<4;e++){const[a,b]=[K[e],K[(e+1)%4]];for(let t=0;t<=1.0001;t+=.028){if(t>.44&&t<.56)continue;
-    const[px,py]=gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);objs.push({y:py,f:g=>pole(g,px,py)})}}
-  K.forEach(([i,j])=>{const[px,py]=gp(i,j);objs.push({y:py+1,f:g=>drawA(g,'tower',px,py)})});
-  BLD.forEach(b=>{const[px,py]=gp(b.i+k0-7,b.j+k0-7);objs.push({y:py,f:g=>{if(b.spr){drawA(g,b.spr,px,py);const a=ATLAS[b.spr];rects.push({id:b.id,x:px-a[4],y:py-a[5],w:a[2],h:a[3]})}
+  // стены: башни по углам, ворота посередине каждой стороны, между ними малые башни, а между башнями прясла стены
+  const R=MAP.R,k0=MAP.C-R,k1=MAP.C+R,K=[[k0,k0],[k1,k0],[k1,k1],[k0,k1]],at=(a,b,t)=>gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);
+  for(let e=0;e<4;e++){const a=K[e],b=K[(e+1)%4],flip=e%2===1; // стороны 1 и 3 идут «/» — арт отражаем
+    for(let q=0;q<4;q++){const[px,py]=at(a,b,(q+.5)/4);objs.push({y:py,f:g=>wallSpan(g,a,b,q,px,py,flip)})}
+    [.25,.5,.75].forEach(t=>{const[px,py]=at(a,b,t);objs.push({y:py+1,f:g=>tower(g,t===.5?'tower_gate':'tower_small',px,py,flip)})})}
+  K.forEach(([i,j])=>{const[px,py]=gp(i,j);objs.push({y:py+1,f:g=>tower(g,'tower_corner',px,py,false)})});
+  BLD.forEach(b=>{const[px,py]=gp(MAP.C+b.at[0],MAP.C+b.at[1]);objs.push({y:py,f:g=>{const k=kimg(b.id);
+    if(k){drawK(g,k,px,py);rects.push({id:b.id,x:Math.round(px)-k.ax+k.x0,y:Math.round(py)-k.ay+k.y0,w:k.x1-k.x0+1,h:k.y1-k.y0+1})}
+    else if(b.spr){drawA(g,b.spr,px,py);const a=ATLAS[b.spr];rects.push({id:b.id,x:px-a[4],y:py-a[5],w:a[2],h:a[3]})}
     else{kapishche(g,px,py);rects.push({id:b.id,x:px-22,y:py-34,w:44,h:42})}}})});
   const cv=document.createElement('canvas');cv.width=MAP.W;cv.height=MAP.H;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;
   g.fillStyle='#07060a';g.fillRect(0,0,MAP.W,MAP.H);
-  cells.forEach(c=>{const[x,y]=gp(c.i,c.j);if(onScreen(x,y))drawA(g,c.t,x-MAP.TW/2,y)});
+  cells.forEach(c=>{const[x,y]=gp(c.i,c.j);if(onScreen(x,y))ground(g,c,x,y)});
   objs.sort((a,b)=>a.y-b.y).forEach(o=>o.f(g));
   cells.forEach(c=>{if(c.z>=0&&!open(c.z))diamond(g,c.i,c.j,'rgba(6,4,8,.66)')});
-  const vg=g.createRadialGradient(MAP.W/2,MAP.H/2,MAP.H*.35,MAP.W/2,MAP.H/2,MAP.W*.62);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(4,3,6,.85)');
+  const vg=g.createRadialGradient(MAP.W/2,MAP.H/2,MAP.H*.42,MAP.W/2,MAP.H/2,MAP.W*.62);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(4,3,6,.85)');
   g.fillStyle=vg;g.fillRect(0,0,MAP.W,MAP.H);
   MB={cells,base:cv,rects};
 }
+// плитка земли: лента из мастерской (кремль, посад, дороги) или атлас
+function ground(g,c,x,y){const k=GROUND[c.g]&&kimg('g_'+c.g);
+  if(k)return g.drawImage(k.im,Math.floor(c.v*k.n)*MAP.TW,0,MAP.TW,k.im.height,x-MAP.TW/2,y,MAP.TW,k.im.height);
+  const v=variants(GROUND[c.g]||'t_'+c.g);drawA(g,v[Math.floor(c.v*v.length)],x-MAP.TW/2,y)}
+// прясло стены между башнями; короткий арт ставим несколько раз вдоль прясла. Без арта — частокол
+function wallSpan(g,a,b,q,px,py,flip){const k=kimg('wall');
+  if(k){const L=k.x1-k.x0+1,S=MAP.R*MAP.TW/4,n=Math.max(1,Math.ceil(S/(L*.75))),step=n>1?(S-L)/(n-1):0; // S — ширина прясла на экране
+    // куски внахлёст от дальнего к ближнему: каждый следующий закрывает торец предыдущего
+    for(let m=0;m<n;m++){const o=(m-(n-1)/2)*step*(flip?-1:1);drawK(g,k,px+o,py+o*(flip?-1:1)/2,flip,L/4)}return}
+  for(let t=q/4+.04;t<(q+1)/4-.03;t+=.02){const[x,y]=gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);pole(g,x,y)}}
+// башня стоит центром на линии стены: низ картинки — ближний угол её основания
+function tower(g,id,x,y,flip){const k=kimg(id);if(k)return drawK(g,k,x,y,flip,(k.x1-k.x0+1)/4);if(id!=='tower_small')drawA(g,'tower',x,y)}
 function diamond(g,i,j,col){const[x,y]=gp(i,j);g.fillStyle=col;g.beginPath();g.moveTo(x,y);g.lineTo(x+MAP.TW/2,y+MAP.TH/2);g.lineTo(x,y+MAP.TH);g.lineTo(x-MAP.TW/2,y+MAP.TH/2);g.closePath();g.fill()}
 function pole(g,x,y){g.fillStyle='#1e130b';g.fillRect(x-2,y-15,4,15);g.beginPath();g.moveTo(x-2,y-15);g.lineTo(x+2,y-15);g.lineTo(x,y-19);g.fill();g.fillStyle='#6b4a2e';g.fillRect(x-1,y-14,2,13)}
 function mound(g,x,y){g.fillStyle='#1e1610';g.beginPath();g.ellipse(x,y-2,15,7,0,0,7);g.fill();g.fillStyle='#3e3022';g.beginPath();g.ellipse(x-1,y-5,10,4,0,0,7);g.fill()}
@@ -60,7 +92,7 @@ function rock(g,x,y,s){g.fillStyle='#2e2e34';g.beginPath();g.moveTo(x-9*s,y);g.l
 function kapishche(g,x,y){for(let k=0;k<7;k++){const a=k/7*Math.PI*2;g.fillStyle='#55555c';g.beginPath();g.ellipse(x+Math.cos(a)*17,y+Math.sin(a)*8,3,2.5,0,0,7);g.fill()}
   g.fillStyle='#e8862a';g.fillRect(x-2,y+3,4,3);g.fillStyle='#1e130b';g.fillRect(x-4,y-29,8,29);g.fillStyle='#5a3a22';g.fillRect(x-3,y-28,6,27);
   g.fillStyle='#1e130b';g.fillRect(x-2,y-24,1,2);g.fillRect(x+1,y-24,1,2);g.fillRect(x-2,y-19,4,1);g.fillRect(x-4,y-14,8,1)}
-function zoneLabelPos(zi){const t=RAY(zi),r=zi%4?10.5:9.6,rho=r*Math.SQRT2/Math.hypot(Math.cos(t)/(MAP.TW/2),Math.sin(t)/(MAP.TH/2)),[cx,cy]=gp(MAP.C,MAP.C);return[cx+rho*Math.cos(t),cy+rho*Math.sin(t)]}
+function zoneLabelPos(zi){const t=RAY(zi),r=[14.5,12.6,12.9,12.6,16.6,12.6,12.9,12.6][zi],rho=r*Math.SQRT2/Math.hypot(Math.cos(t)/(MAP.TW/2),Math.sin(t)/(MAP.TH/2)),[cx,cy]=gp(MAP.C,MAP.C);return[cx+rho*Math.cos(t),cy+rho*Math.sin(t)]}
 function plate(g,x,y,lines,hot){g.font='9px "Press Start 2P", monospace';const w=Math.max(...lines.map(l=>g.measureText(l).width))+14,h=lines.length*14+8;
   g.fillStyle=hot?'rgba(60,30,16,.92)':'rgba(14,10,8,.82)';g.fillRect(x-w/2,y-h/2,w,h);g.strokeStyle=hot?'#d4a84a':'#6a4a2a';g.lineWidth=1;g.strokeRect(x-w/2+.5,y-h/2+.5,w-1,h-1);
   lines.forEach((l,k)=>{g.fillStyle=k?'#9a8a72':(hot?'#f0d080':'#e8dcc4');g.fillText(l,x-g.measureText(l).width/2,y-h/2+16+k*14)})}

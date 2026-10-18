@@ -27,6 +27,7 @@ function gainXP(x){S.xp+=x;run.xp+=x;while(S.xp>=need(S.lvl)){S.xp-=need(S.lvl);
 
 // ---------- эффекты боя поверх арены (рендер спрайтов — в js/sprites.js) ----------
 onSpriteLoad=()=>paintAll();
+onKremLoad=()=>{MB=null;paintAll()};
 function fxAt(cls,x,y,w,ms){const a=$('#arena'),d=document.createElement('div');d.className=cls;d.style.cssText=`left:${x}px;top:${y}px;${w}`;a.appendChild(d);setTimeout(()=>d.remove(),ms)}
 function tracer(k){const a=$('#arena'),h=$('#hero canvas'),m=$('#m'+k+' canvas');if(!a||!h||!m)return;const ra=a.getBoundingClientRect(),rh=h.getBoundingClientRect(),rm=m.getBoundingClientRect();if(!rh.width)return;
   const x1=rh.left+rh.width*.9-ra.left,y1=rh.top+rh.height*.48-ra.top,x2=rm.left+rm.width*.5-ra.left,y2=rm.top+rm.height*.55-ra.top;
@@ -72,7 +73,8 @@ function buy(id){const it=SHOP[id],c=it.c();if(S.gold<c)return;S.gold-=c;S[id]++
 function building(id){const b=BLD.find(x=>x.id===id);let body;
   if(id==='kuznica')body=shopHTML(['sword','armor']);else if(id==='znaharka')body=shopHTML(['potions']);else if(id==='torg')body=shopHTML(['scrolls']);
   else if(id==='izba')body=izbaHTML();
-  else if(id==='terem')body=`<div class="panel story">${INTRO.map(p=>`<p>${p}</p>`).join('')}<p class="muted">Царские поручения появятся в следующем обновлении.</p></div>`;
+  else if(id==='palaty')body=`<div class="panel story">${INTRO.map(p=>`<p>${p}</p>`).join('')}<p class="muted">Царские поручения появятся в следующем обновлении.</p></div>`;
+  else if(id==='tserkov')body='<div class="panel story"><p>Двери заперты. Сторож говорит: батюшка в отъезде, вернётся — откроет.</p><p class="muted">Скоро здесь что-то будет.</p></div>';
   else body='<div class="panel"><p class="muted">Скоро здесь что-то будет.</p></div>';
   app.innerHTML=`<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${b.name}</h1><button data-act="map">← В кремль</button></div><p class="muted" style="margin-top:10px">${b.desc}</p></div>${body}`;paintAll()}
 function izbaHTML(){const tabs=[['lessons','Уроки'],['beast','Бестиарий'],['stats','Летопись']].map(([k,n])=>`<button data-act="izt" data-t="${k}" class="${izTab===k?'on':''}">${n}</button>`).join('');let b='';

@@ -1,7 +1,7 @@
 'use strict';
 // ---------- изометрическая карта: кремль в центре, зоны секторами вокруг ----------
 // сетка больше окна: лес уходит за края, кремль в центре; R — полуразмер кремля в клетках
-const MAP={N:49,TW:40,TH:20,C:24,W:880,H:560,R:7};
+const MAP={N:49,TW:40,TH:20,C:24,W:880,H:560,R:8};
 const ATL=new Image();ATL.src='assets/env/atlas.png';
 function drawA(g,name,x,y,sc=1){const a=ATLAS[name];if(!a||!ATL.complete)return;g.drawImage(ATL,a[0],a[1],a[2],a[3],Math.round(x-a[4]*sc),Math.round(y-a[5]*sc),a[2]*sc,a[3]*sc)}
 const VAR={};const variants=p=>VAR[p]||(VAR[p]=Object.keys(ATLAS).filter(k=>k.startsWith(p+'_')));
@@ -12,7 +12,7 @@ const onScreen=(x,y,m=60)=>x>-m&&x<MAP.W+m&&y>-m&&y<MAP.H+m*2;
 const RAY=k=>Math.PI/2+k*Math.PI/4; // направление на зону k (0 — вниз, дальше по часовой)
 
 // ---------- арт кремля из мастерской: assets/buildings/<id>.png; пока его нет — атлас и процедурные стены ----------
-// стена рисуется идущей «\» (сверху-слева вниз-вправо), для сторон «/» отражается; g_* — ленты плиток земли 40×20
+// наклон прясла («/» или «\») игра узнаёт по самой картинке и на других сторонах отражает её; g_* — ленты плиток земли 40×20
 const FORT=['wall','tower_corner','tower_small','tower_gate'],GROUND={kreml:'t_kremlin',most:'t_road',road:'t_road',posad:'t_posad'};
 const KREM_IDS=()=>[...BLD.map(b=>b.id),...FORT,...Object.keys(GROUND).map(k=>'g_'+k)];
 const KIM={};let onKremLoad=null;
@@ -22,7 +22,11 @@ function prepK(id,im){const c=document.createElement('canvas');c.width=im.width;
   try{const d=g.getImageData(0,0,c.width,c.height).data;
     for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>=10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
   }catch(e){x0=y0=0;x1=c.width-1;y1=c.height-1} // file:// не даёт читать пиксели — берём холст целиком
-  if(x1<0)return false;return{im:c,x0,y0,x1,y1,ax:Math.round((x0+x1+1)/2),ay:y1+1}}
+  if(x1<0)return false;const k={im:c,x0,y0,x1,y1,ax:Math.round((x0+x1+1)/2),ay:y1+1};
+  if(id==='wall')k.slash=wallSlash(g,k);return k}
+// прясло «/», если верх картинки слева ниже, чем справа
+function wallSlash(g,k){const w=k.x1-k.x0+1,q=Math.max(1,Math.floor(w/4)),top=x=>{try{const d=g.getImageData(x,0,1,k.y1+1).data;for(let y=0;y<=k.y1;y++)if(d[y*4+3]>=10)return y}catch(e){}return 0};
+  let l=0,r=0;for(let i=0;i<q;i++){l+=top(k.x0+i);r+=top(k.x1-i)}return l>r}
 function kimg(id){if(!(id in KIM)){KIM[id]=null;const im=new Image();im.onload=()=>{KIM[id]=prepK(id,im);onKremLoad&&onKremLoad()};im.onerror=()=>{KIM[id]=false};im.src=`assets/buildings/${id}.png`}return KIM[id]}
 const setKrem=(id,c)=>{KIM[id]=c?prepK(id,c):false}; // мастерская подставляет выбранное сразу
 // картинка по якорю (низ по центру); flip — зеркально
@@ -55,9 +59,9 @@ function buildMap(open){
   }
   // стены: башни по углам, ворота посередине каждой стороны, между ними малые башни, а между башнями прясла стены
   const R=MAP.R,k0=MAP.C-R,k1=MAP.C+R,K=[[k0,k0],[k1,k0],[k1,k1],[k0,k1]],at=(a,b,t)=>gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);
-  for(let e=0;e<4;e++){const a=K[e],b=K[(e+1)%4],flip=e%2===1; // стороны 1 и 3 идут «/» — арт отражаем
-    for(let q=0;q<4;q++){const[px,py]=at(a,b,(q+.5)/4);objs.push({y:py,f:g=>wallSpan(g,a,b,q,px,py,flip)})}
-    [.25,.5,.75].forEach(t=>{const[px,py]=at(a,b,t);objs.push({y:py+1,f:g=>tower(g,t===.5?'tower_gate':'tower_small',px,py,flip)})})}
+  for(let e=0;e<4;e++){const a=K[e],b=K[(e+1)%4],slash=e%2===1; // стороны 1 и 3 идут «/», 0 и 2 — «\»
+    for(let q=0;q<4;q++){const[px,py]=at(a,b,(q+.5)/4);objs.push({y:py,f:g=>wallSpan(g,a,b,q,px,py,slash)})}
+    [.25,.5,.75].forEach(t=>{const[px,py]=at(a,b,t);objs.push({y:py+1,f:g=>tower(g,t===.5?'tower_gate':'tower_small',px,py,slash)})})}
   K.forEach(([i,j])=>{const[px,py]=gp(i,j);objs.push({y:py+1,f:g=>tower(g,'tower_corner',px,py,false)})});
   BLD.forEach(b=>{const[px,py]=gp(MAP.C+b.at[0],MAP.C+b.at[1]);objs.push({y:py,f:g=>{const k=kimg(b.id);
     if(k){drawK(g,k,px,py);rects.push({id:b.id,x:Math.round(px)-k.ax+k.x0,y:Math.round(py)-k.ay+k.y0,w:k.x1-k.x0+1,h:k.y1-k.y0+1})}
@@ -77,12 +81,12 @@ function ground(g,c,x,y){const k=GROUND[c.g]&&kimg('g_'+c.g);
   if(k)return g.drawImage(k.im,Math.floor(c.v*k.n)*MAP.TW,0,MAP.TW,k.im.height,x-MAP.TW/2,y,MAP.TW,k.im.height);
   const v=variants(GROUND[c.g]||'t_'+c.g);drawA(g,v[Math.floor(c.v*v.length)],x-MAP.TW/2,y)}
 // прясло стены между башнями; короткий арт ставим несколько раз вдоль прясла. Без арта — частокол
-function wallSpan(g,a,b,q,px,py,flip){const k=kimg('wall');
-  if(k){const L=k.x1-k.x0+1,S=MAP.R*MAP.TW/4,n=Math.max(1,Math.ceil(S/(L*.75))),step=n>1?(S-L)/(n-1):0; // S — ширина прясла на экране
+function wallSpan(g,a,b,q,px,py,slash){const k=kimg('wall');
+  if(k){const L=k.x1-k.x0+1,S=MAP.R*MAP.TW/4,n=Math.max(1,Math.ceil(S/(L*.75))),step=n>1?(S-L)/(n-1):0,s=slash?-1:1; // S — ширина прясла на экране
     // куски внахлёст от дальнего к ближнему: каждый следующий закрывает торец предыдущего
-    for(let m=0;m<n;m++){const o=(m-(n-1)/2)*step*(flip?-1:1);drawK(g,k,px+o,py+o*(flip?-1:1)/2,flip,L/4)}return}
+    for(let m=0;m<n;m++){const o=(m-(n-1)/2)*step*s;drawK(g,k,px+o,py+o*s/2,k.slash!==slash,L/4)}return}
   for(let t=q/4+.04;t<(q+1)/4-.03;t+=.02){const[x,y]=gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);pole(g,x,y)}}
-// башня стоит центром на линии стены: низ картинки — ближний угол её основания
+// башня стоит центром на линии стены: низ картинки — ближний угол её основания. Проезд нарисован на левой грани, на сторонах «/» — отражаем
 function tower(g,id,x,y,flip){const k=kimg(id);if(k)return drawK(g,k,x,y,flip,(k.x1-k.x0+1)/4);if(id!=='tower_small')drawA(g,'tower',x,y)}
 function diamond(g,i,j,col){const[x,y]=gp(i,j);g.fillStyle=col;g.beginPath();g.moveTo(x,y);g.lineTo(x+MAP.TW/2,y+MAP.TH/2);g.lineTo(x,y+MAP.TH);g.lineTo(x-MAP.TW/2,y+MAP.TH/2);g.closePath();g.fill()}
 function pole(g,x,y){g.fillStyle='#1e130b';g.fillRect(x-2,y-15,4,15);g.beginPath();g.moveTo(x-2,y-15);g.lineTo(x+2,y-15);g.lineTo(x,y-19);g.fill();g.fillStyle='#6b4a2e';g.fillRect(x-1,y-14,2,13)}

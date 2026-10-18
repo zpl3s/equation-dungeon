@@ -32,6 +32,16 @@ function paintCr(cv){const id=cv.dataset.cr,sz=+cv.dataset.sz,g=cv.getContext('2
   if(im){let sc=sz/Math.max(im.width,im.height);if(sc>=1)sc=Math.floor(sc);const w=im.width*sc,h=im.height*sc;g.drawImage(im,(sz-w)/2,sz-h,w,h);return}
   const c=CR[id],sw=c.sw||{},sc=sz/16;
   SPR[c.b].split('|').forEach((r,y)=>[...r+[...r].reverse().join('')].forEach((ch,x)=>{if(ch==='.')return;g.fillStyle=sw[ch]||PAL[ch];g.fillRect(x*sc,y*sc,sc,sc)}))}
+// анимации: assets/sprites/<id>_idle.png и <id>_attack.png — кадры в ряд, квадратные
+const ANIM={};
+function strip(id,kind){const k=id+'_'+kind;if(!(k in ANIM)){ANIM[k]=null;const im=new Image();im.onload=()=>{ANIM[k]={im,f:im.height,n:Math.max(1,Math.round(im.width/im.height))}};im.onerror=()=>{ANIM[k]=false};im.src=`assets/sprites/${k}.png`}return ANIM[k]}
+function drawFrame(cv,a,i){const sz=+cv.dataset.sz,g=cv.getContext('2d');let sc=sz/a.f;if(sc>=1)sc=Math.floor(sc);const w=a.f*sc;
+  g.imageSmoothingEnabled=false;g.clearRect(0,0,sz,sz);g.drawImage(a.im,i*a.f,0,a.f,a.f,(sz-w)/2,sz-w,w,w)}
+function playAnim(cv,kind){if(!cv||!strip(cv.dataset.cr,kind))return false;cv._play={kind,t0:performance.now()};return true}
+function animLoop(t){document.querySelectorAll('canvas[data-cr]').forEach(cv=>{const id=cv.dataset.cr,idle=strip(id,'idle'),p=cv._play;
+  if(p){const a=strip(id,p.kind),i=Math.floor((t-p.t0)/1000*12);if(a&&i<a.n)return drawFrame(cv,a,i);cv._play=null;if(!idle)paintCr(cv)}
+  if(idle){cv.classList.remove('bob');drawFrame(cv,idle,Math.floor(t/1000*7)%idle.n)}});requestAnimationFrame(animLoop)}
+requestAnimationFrame(animLoop);
 const cr=(id,sz=128,cls='bob')=>`<canvas data-cr="${id}" data-sz="${sz}" class="${cls}" style="width:${sz}px;height:${sz}px"></canvas>`;
 function paintAll(){document.querySelectorAll('canvas[data-cr]').forEach(paintCr);const a=$('#arenaBg');if(a&&run)paintArena(a,run.zi);const m=$('#map');if(m){if(!MB)buildMap(zOpen);paintMap(m,mapState())}}
 ATL.addEventListener('load',()=>{MB=null;paintAll()});
@@ -171,14 +181,14 @@ function hit(){if(!run||busy)return;const k=run.tg,m=run.mons[k];if(!m||m.hp<=0)
     const sp=spd(s,t.par),crit=sp>=2,dmg=Math.max(1,Math.round(10*t.d*sp*cm()*atk()*(e.hinted?.5:1)));
     run.ok++;run.time+=s;run.combo++;run.maxc=Math.max(run.maxc,run.combo);if(crit)run.crits++;
     gainXP(5*t.d+(crit?5:0));m.hp-=dmg;
-    anim($('#hero canvas'),'lunge');anim($('#m'+k+' canvas'),'shake');pop(k,(crit?'КРИТ! ':'')+'−'+dmg,crit);
+    if(!playAnim($('#hero canvas'),'attack'))anim($('#hero canvas'),'lunge');anim($('#m'+k+' canvas'),'shake');pop(k,(crit?'КРИТ! ':'')+'−'+dmg,crit);
     let txt=`${crit?'Точно в сердце!':'Попал!'} ${Math.round(s)} с · урон ${dmg}`;
     if(m.hp<=0){const g=m.boss?40:3+2*t.d;S.gold+=g;run.gold+=g;S.met[m.id]=(S.met[m.id]||0)+1;txt+=` · ${m.name} повержен! +${g} з.`;
       if(m.boss&&!zBeaten(run.zi)){S.beaten.push(ZONES[run.zi].id);const nz=ZONES[run.zi+1];if(nz){run.newZone=nz.name;toast(`Путь открыт: ${nz.name}`)}}}
     else m.eq=m.boss?bossEq():newEq(m.ti);
     msg(txt,crit?'gold':'ok');
   }else{
-    run.combo=0;run.hp-=m.atk;run.lastWrong=e;anim($('#m'+k+' canvas'),'lungel');anim($('#arena'),'flash');
+    run.combo=0;run.hp-=m.atk;run.lastWrong=e;if(!playAnim($('#m'+k+' canvas'),'attack'))anim($('#m'+k+' canvas'),'lungel');anim($('#arena'),'flash');
     msg(`Мимо. ${m.name} бьёт на ${m.atk}. <button data-act="sol">Показать решение</button>`,'bad');m.eq=m.boss?bossEq():newEq(m.ti);
   }
   save();updHUD();updMon(k);

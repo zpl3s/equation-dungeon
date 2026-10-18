@@ -47,3 +47,16 @@ koschei:['Виктор Васнецов, «Кощей Бессмертный» (
 gorynych:['Виктор Васнецов, «Бой Добрыни Никитича с семиглавым Змеем Горынычем» (1913–1918)','Vasnetsov Dobrynya Zmey'],
 rusalka:['Иван Крамской, «Русалки» (1871)','Kramskoi Mermaids'],
 };
+// анимации (PixelLab → Animate with text (New)): idle — покой по кругу, attack — удар
+const ANIM_ACT={idle:'idle, breathing, subtle sway',attack:'attack, lunging forward'};
+const ANIM_FOR={ // свои действия для части существ; kot без атаки
+strelets:{idle:'idle, breathing, holding musket',attack:'aiming and firing musket, smoke puff from barrel'},
+kot:{idle:'idle, tail swaying, adjusting spectacles',attack:null},
+poludnitsa:{idle:'floating idle, dress and hair drifting in hot wind',attack:'swinging sickle'},
+mavka:{idle:'floating idle, hair drifting'},rusalka:{idle:'idle, wet hair swaying'},blud:{idle:'flickering ghostly idle'},nav:{idle:'floating idle, wisps drifting'},
+mara:{idle:'floating idle, robes drifting'},morok:{idle:'swirling fog idle'},igosha:{idle:'floating idle, bobbing'},
+volkolak:{attack:'claw swipe'},chort:{attack:'jumping kick with hooves'},leshy:{attack:'sweeping strike with branch arms'},
+vodyanoy:{attack:'slam, splashing water'},yaga:{attack:'swinging pestle from the mortar'},viy:{attack:'eyelids lift, deadly gaze'},
+gorynych:{attack:'breathing fire'},koschei:{attack:'sword slash'},kostyanoy:{attack:'sword slash'},solovey:{attack:'deafening whistle, shockwave'},
+};
+const animAct=(id,kind)=>{const o=ANIM_FOR[id];return o&&kind in o?o[kind]:ANIM_ACT[kind]};

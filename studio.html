@@ -11,39 +11,49 @@
 <style>
 .card{display:flex;gap:16px;background:var(--panel2);border:2px solid var(--line);padding:12px;margin-bottom:12px}
 .card.done{border-color:#6a8a3a}
-.card.drag{border-color:var(--gold);background:#33261a}
 .pv{position:relative;flex:none}
 .pv canvas{width:320px;height:240px}
 .tag{position:absolute;left:6px;top:6px;font:9px 'Press Start 2P',monospace;background:#000b;padding:4px 6px}
 .done .tag{color:var(--ok)}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 textarea{width:100%;font:14px/1.4 ui-monospace,Menlo,monospace;background:#0a0706;color:var(--text);border:2px solid var(--line);padding:8px;resize:vertical}
-.up{display:inline-block;font:10px 'Press Start 2P',monospace;background:#6a1e1a;border:2px solid #c8803a;color:#f6e6c8;padding:9px 11px;cursor:pointer}
+.slot{border:2px dashed #4a3622;padding:8px;display:flex;flex-direction:column;gap:6px}
+.slot.drag{border-color:var(--gold);background:#33261a}
+.slot .act{font:14px ui-monospace,Menlo,monospace;color:#d8c8a8}
+.ok-mark{color:var(--ok);font:9px 'Press Start 2P',monospace}
+.up{display:inline-block;font:10px 'Press Start 2P',monospace;background:#6a1e1a;border:2px solid #c8803a;color:#f6e6c8;padding:8px 10px;cursor:pointer}
 .up input{display:none}
 .how li{margin-bottom:8px}
 code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
 .set{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:15px}
-@media (max-width:700px){.card{flex-direction:column}.pv canvas{width:100%;height:auto}}
+@media (max-width:700px){.card{flex-direction:column}.pv canvas{width:100%;height:auto}.set{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div id="app">
   <div class="panel"><h1>Мастерская спрайтов</h1>
-    <p>Здесь собрана вся нечисть, которую нужно нарисовать. Для каждого существа есть готовый промпт и настройки для PixelLab, а загруженная картинка сразу сохраняется в игру. Открывай эту страницу двойным кликом по <code>studio.html</code> в папке проекта, лучше в Chrome.</p></div>
+    <p>Здесь собрана вся нечисть, которую нужно нарисовать. У каждого существа есть готовые промпты для PixelLab: для самого спрайта, для анимации покоя и для атаки. Загруженные картинки сразу сохраняются в игру. Открывай эту страницу двойным кликом по <code>studio.html</code> в папке проекта, лучше в Chrome.</p></div>
 
   <div class="panel how"><h2>Как генерировать в PixelLab</h2><ol>
-    <li>Открой <a class="gold" href="https://www.pixellab.ai/create" target="_blank" rel="noopener">pixellab.ai → Create</a>, инструмент <b>Create image</b>.</li>
-    <li><b>Режим Pro (рекомендую).</b> Он выдаёт сразу пачку вариантов: на холсте 64×64 — 16 штук, на 96×96 — 4. Пачка стоит 10 генераций (на холсте 65–85 — 15). Скачай весь лист и загрузи его в карточку: мастерская покажет сетку, и ты кликнешь нужный вариант.
+    <li><b>Спрайт.</b> Открой <a class="gold" href="https://www.pixellab.ai/create" target="_blank" rel="noopener">pixellab.ai → Create</a>, инструмент <b>Create image</b>, режим <b>Pro</b>. Он выдаёт пачку вариантов: на холсте 64×64 — 16 штук, на 96×96 — 4. Пачка стоит 10 генераций. Скачай лист целиком и перетащи на строку «Спрайт»: мастерская покажет сетку, кликни нужный вариант.
       <div class="set" style="margin:8px 0">
         <span class="muted">Размер холста</span><span>64×64, у хозяев зон (★) — 96×96</span>
-        <span class="muted">Description</span><span>кнопка «Копировать промпт» в карточке</span>
+        <span class="muted">Description</span><span>кнопка «Копировать» у строки «Спрайт»</span>
         <span class="muted">No background</span><span>включить</span>
-        <span class="muted">Style image</span><span>как только появится первый удачный спрайт — грузи его сюда для всех остальных: так вся нечисть будет в одном стиле</span>
-        <span class="muted">Color palette</span><span>загрузи <a class="gold" href="assets/palette.png" download="palette.png">palette.png</a> — 32 цвета нашего леса</span>
-        <span class="muted">Reference images</span><span>по желанию, до 4 картинок с внешним видом существа (подсказки есть в некоторых карточках)</span>
-      </div></li>
-    <li><b>Режим PixFlux (дешевле, 1 генерация = 1 картинка).</b> Настройки: Camera view — side, Direction — как в карточке (west — влево, east — вправо), Transparent background — включить, Negative description — <button data-neg>Копировать</button>.</li>
-    <li>Понравилось — скачай PNG и перетащи на карточку ниже. Потом открой игру (<code>index.html</code>): новые спрайты уже там. Загрузишь несколько — скажи мне, я выложу их на сайт.</li>
+        <span class="muted">Style image</span><span>первый удачный спрайт — для всех остальных, тогда стиль будет один</span>
+        <span class="muted">Color palette</span><span><a class="gold" href="assets/palette.png" download="palette.png">palette.png</a> — 32 цвета нашего леса</span>
+        <span class="muted">Reference images</span><span>по желанию, до 4 картинок с видом существа (подсказки есть в некоторых карточках)</span>
+      </div>
+      Дешёвый вариант — режим PixFlux: 1 генерация = 1 картинка. Camera view — side, Direction — как в карточке, Transparent background — включить, Negative description — <button data-neg>Копировать</button>.</li>
+    <li><b>Анимации.</b> В PixelLab открой <b>Animate → Animate with text (New)</b>. Это бесплатно для всех: на 64×64 до 16 кадров стоят 1 генерацию, на 96×96 — 4 кадра за 1 генерацию, 8 кадров за 2.
+      <div class="set" style="margin:8px 0">
+        <span class="muted">Reference image</span><span>готовый спрайт этого существа: <code>assets/sprites/&lt;файл&gt;.png</code></span>
+        <span class="muted">Animation action</span><span>кнопка «Копировать» у строки «Покой» или «Атака»</span>
+        <span class="muted">Frame count</span><span>покой — 4–6 кадров, атака — 6–8</span>
+        <span class="muted">Remove background</span><span>включить</span>
+      </div>
+      Скачай результат и перетащи на нужную строку. Подойдёт PNG-лист, GIF или все кадры разом (несколько файлов).</li>
+    <li>Открой игру (<code>index.html</code>): спрайты и анимации уже там. Загрузишь несколько — скажи мне, я выложу их на сайт.</li>
   </ol></div>
 
   <div class="panel" id="folder"></div>
@@ -61,13 +71,20 @@ const $=s=>document.querySelector(s);
 const GROUPS=[{name:'Герои',ids:['strelets','kot'],zi:0},...ZONES.map((z,zi)=>({name:z.name,ids:[...z.mobs,z.boss],zi}))];
 const ZONE_OF={};GROUPS.forEach(g=>g.ids.forEach(id=>ZONE_OF[id]=g.zi));
 const DIRS={east:'east — смотрит вправо',west:'west — смотрит влево',south:'south — смотрит на нас'};
+const KINDS={sprite:'Спрайт',idle:'Покой',attack:'Атака'};
 const fsOK='showDirectoryPicker' in window;
-let dir=null,filter='all';const have={},img={},bg={};
+let dir=null,filter='all';
+const pic={},bg={},play={}; // pic['id'] — спрайт, pic['id_idle'] / pic['id_attack'] — ленты кадров
+const key=(id,k)=>k==='sprite'?id:id+'_'+k;
+const kinds=id=>['sprite','idle',...(animAct(id,'attack')?['attack']:[])];
 
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('#toast').appendChild(d);setTimeout(()=>d.remove(),3500)}
 async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}toast('Скопировано')}
+const textFor=(id,k)=>k==='sprite'?`${ART_STYLE}, ${ART[id].p}`:animAct(id,k);
+const canvasOf=b=>{const c=document.createElement('canvas');c.width=b.displayWidth||b.width;c.height=b.displayHeight||b.height;c.getContext('2d').drawImage(b,0,0);return c};
+const opaque=c=>{const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=4)if(d[i]>=10)return true;return false};
 
-// ---------- папка assets/sprites: доступ через File System Access, ручка хранится в IndexedDB ----------
+// ---------- папка assets/sprites: File System Access, ручка хранится в IndexedDB ----------
 const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open('studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
 async function kv(k,v){const db=await idb();return new Promise(ok=>{const tx=db.transaction('kv',v===undefined?'readonly':'readwrite'),s=tx.objectStore('kv');
   if(v===undefined){const q=s.get(k);q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)}else{s.put(v,k);tx.oncomplete=()=>ok()}})}
@@ -75,85 +92,105 @@ async function perm(ask){if(!dir)return false;const o={mode:'readwrite'};if(awai
 async function pickDir(){try{const h=await showDirectoryPicker({id:'sprites',mode:'readwrite'});
   if(h.name!=='sprites'&&!confirm(`Выбрана папка «${h.name}». Нужна папка equation-dungeon/assets/sprites. Всё равно сохранять сюда?`))return;
   dir=h;await kv('dir',h);await scan();renderAll()}catch(e){if(e.name!=='AbortError')toast('Не вышло: '+e.message)}}
-async function scan(){if(!await perm(false))return;for await(const[name,h]of dir.entries()){const m=name.match(/^(.+)\.png$/);
-  if(m&&ART[m[1]]){have[m[1]]=true;try{img[m[1]]=await createImageBitmap(await h.getFile())}catch(e){}}}}
-function probe(){Object.keys(ART).forEach(id=>{const im=new Image();im.onload=()=>{if(!img[id]){have[id]=true;img[id]=im;renderCard(id);renderBar()}};im.src=`assets/sprites/${id}.png?${Date.now()}`})}
+async function scan(){if(!await perm(false))return;for await(const[name,h]of dir.entries()){const m=name.match(/^(.+?)(?:_(idle|attack))?\.png$/);
+  if(m&&ART[m[1]]){try{pic[key(m[1],m[2]||'sprite')]=await createImageBitmap(await h.getFile())}catch(e){}}}}
+function probe(){Object.keys(ART).forEach(id=>kinds(id).forEach(k=>{const n=key(id,k);if(pic[n])return;const im=new Image();
+  im.onload=()=>{if(!pic[n]){pic[n]=im;renderCard(id);renderBar()}};im.src=`assets/sprites/${n}.png?${Date.now()}`}))}
+async function store(name,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+  if(dir&&await perm(true)){const fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(blob);await ws.close();return`Сохранено: assets/sprites/${name}`}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return`Скачано как ${name} — перенеси в assets/sprites`}
 
-// ---------- превью: фон боя зоны + спрайт в игровом масштабе ----------
+// ---------- превью: фон боя зоны, покой по кругу, атака по кнопке ----------
 function arenaBg(zi){if(!bg[zi]&&ATL.complete){bg[zi]=document.createElement('canvas');paintArena(bg[zi],zi)}return bg[zi]}
-function paintPreview(id){const cv=$('#pv_'+id);if(!cv)return;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;const zi=ZONE_OF[id];
+function paintPreview(id,t=performance.now()){const cv=$('#pv_'+id);if(!cv)return;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;const zi=ZONE_OF[id];
   g.fillStyle=ZONES[zi].sky[1];g.fillRect(0,0,160,120);const b=arenaBg(zi);if(b)g.drawImage(b,-140,2);
-  const im=img[id],a=ART[id];
-  if(im){g.drawImage(im,Math.round(80-im.width/2),114-im.height);return}
-  const c=CR[id],sw=c.sw||{},sc=a.size/16,ox=80-a.size/2,oy=114-a.size;g.globalAlpha=.55;
+  const p=play[id],strip=p?pic[key(id,'attack')]:pic[key(id,'idle')];
+  if(strip){const f=strip.height,n=Math.max(1,Math.round(strip.width/f));let i=p?Math.floor((t-p)/1000*12):Math.floor(t/1000*7)%n;
+    if(p&&i>=n){delete play[id];return paintPreview(id,t)}g.drawImage(strip,i*f,0,f,f,Math.round(80-f/2),114-f,f,f);return}
+  const im=pic[id];if(im){g.drawImage(im,Math.round(80-im.width/2),114-im.height);return}
+  const c=CR[id],sw=c.sw||{},a=ART[id],sc=a.size/16,ox=80-a.size/2,oy=114-a.size;g.globalAlpha=.55;
   SPR[c.b].split('|').forEach((r,y)=>[...r+[...r].reverse().join('')].forEach((ch,x)=>{if(ch==='.')return;g.fillStyle=sw[ch]||PAL[ch];g.fillRect(ox+x*sc,oy+y*sc,sc,sc)}));g.globalAlpha=1}
+setInterval(()=>{const t=performance.now();Object.keys(ART).forEach(id=>{if(play[id]||pic[key(id,'idle')])paintPreview(id,t)})},70);
 
-// ---------- загрузка: лист вариантов → выбор, затем проверка, выравнивание по низу, сохранение ----------
-async function onFile(id,file){const st=$('#st_'+id);if(!file)return;
+// ---------- спрайт: лист вариантов → выбор, затем выравнивание по низу ----------
+async function onSprite(id,file){const st=$('#st_'+id);
   if(!/png$/i.test(file.type)&&!/\.png$/i.test(file.name)){st.innerHTML='<span class="bad">Нужен PNG-файл</span>';return}
-  const bmp=await createImageBitmap(file);
-  if(Math.max(bmp.width,bmp.height)>ART[id].size*1.6)return picker(id,bmp);
-  save(id,bmp)}
-// режим Pro отдаёт лист 2×2, 4×4 или 8×8 — даём кликнуть нужный вариант
+  const bmp=await createImageBitmap(file);if(Math.max(bmp.width,bmp.height)>ART[id].size*1.6)return picker(id,bmp);saveSprite(id,bmp)}
 function picker(id,bmp){const need=ART[id].size,W=bmp.width,guess=[8,4,2].find(n=>W===bmp.height&&W%n===0&&W/n>=need*.6&&W/n<=need*1.6)||1;
   const st=$('#st_'+id);st.innerHTML=`<div>Похоже на лист с вариантами (${W}×${bmp.height}). Кликни вариант, который берём:</div>
     <div class="row" style="margin:6px 0">${[1,2,4,8].map(n=>`<button data-grid="${n}" class="${n===guess?'on':''}">${n===1?'Это одна картинка':n+'×'+n}</button>`).join('')}</div><canvas class="pk" style="max-width:100%;cursor:pointer"></canvas>`;
   const cv=st.querySelector('.pk');let n=guess;
-  const draw=()=>{const sc=Math.max(1,Math.floor(384/Math.max(W,bmp.height)))||1,g=cv.getContext('2d');cv.width=W*sc;cv.height=bmp.height*sc;g.imageSmoothingEnabled=false;
+  const draw=()=>{const sc=Math.max(1,Math.floor(384/Math.max(W,bmp.height))),g=cv.getContext('2d');cv.width=W*sc;cv.height=bmp.height*sc;g.imageSmoothingEnabled=false;
     g.fillStyle='#120d09';g.fillRect(0,0,cv.width,cv.height);g.drawImage(bmp,0,0,cv.width,cv.height);g.strokeStyle='#d4a84a';
     for(let k=1;k<n;k++){g.beginPath();g.moveTo(k*cv.width/n,0);g.lineTo(k*cv.width/n,cv.height);g.moveTo(0,k*cv.height/n);g.lineTo(cv.width,k*cv.height/n);g.stroke()}};
   draw();
-  st.querySelectorAll('[data-grid]').forEach(b=>b.onclick=()=>{n=+b.dataset.grid;st.querySelectorAll('[data-grid]').forEach(x=>x.classList.toggle('on',x===b));if(n===1)save(id,bmp);else draw()});
+  st.querySelectorAll('[data-grid]').forEach(b=>b.onclick=()=>{n=+b.dataset.grid;st.querySelectorAll('[data-grid]').forEach(x=>x.classList.toggle('on',x===b));if(n===1)saveSprite(id,bmp);else draw()});
   cv.onclick=e=>{if(n===1)return;const r=cv.getBoundingClientRect(),cx=Math.floor((e.clientX-r.left)/r.width*n),cy=Math.floor((e.clientY-r.top)/r.height*n),cw=W/n,ch=bmp.height/n;
-    const c=document.createElement('canvas');c.width=cw;c.height=ch;c.getContext('2d').drawImage(bmp,cx*cw,cy*ch,cw,ch,0,0,cw,ch);save(id,c)}}
-async function save(id,bmp){const st=$('#st_'+id);
-  const w0=bmp.width,h0=bmp.height,cv=document.createElement('canvas');cv.width=w0;cv.height=h0;const g=cv.getContext('2d');g.drawImage(bmp,0,0);
-  const d=g.getImageData(0,0,w0,h0).data;let x0=w0,y0=h0,x1=-1,y1=-1,clear=0;
-  for(let y=0;y<h0;y++)for(let x=0;x<w0;x++){if(d[(y*w0+x)*4+3]<10){clear++;continue}if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
-  if(x1<0){st.innerHTML='<span class="bad">Картинка пустая</span>';return}
-  const warn=[],need=ART[id].size;
-  if(!clear)warn.push('нет прозрачного фона — включи Remove background');
-  if(Math.max(w0,h0)>need*1.6)warn.push(`картинка ${w0}×${h0}, а нужен холст ${need}×${need}`);
-  // холст оставляем прежнего размера, существо ставим ногами на нижний край по центру
-  const S=Math.max(w0,h0),w=x1-x0+1,h=y1-y0+1,out=document.createElement('canvas');out.width=S;out.height=S;
-  out.getContext('2d').drawImage(cv,x0,y0,w,h,Math.floor((S-w)/2),S-h,w,h);
-  const blob=await new Promise(r=>out.toBlob(r,'image/png'));img[id]=out;have[id]=true;
-  let where;
-  if(dir&&await perm(true)){const fh=await dir.getFileHandle(id+'.png',{create:true}),ws=await fh.createWritable();await ws.write(blob);await ws.close();where=`Сохранено: assets/sprites/${id}.png`}
-  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=id+'.png';a.click();where=`Скачано как ${id}.png — перенеси в assets/sprites`}
-  renderCard(id);renderBar();
-  $('#st_'+id).innerHTML=`<span class="${warn.length?'gold':'ok'}">${where}${warn.length?'. Внимание: '+warn.join('; '):''}</span>`}
+    const c=document.createElement('canvas');c.width=cw;c.height=ch;c.getContext('2d').drawImage(bmp,cx*cw,cy*ch,cw,ch,0,0,cw,ch);saveSprite(id,c)}}
+async function saveSprite(id,src){const cv=canvasOf(src),warn=[],need=ART[id].size;
+  if(!opaque(cv))return done(id,'<span class="bad">Картинка пустая</span>');
+  const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;if(![...Array(d.length/4).keys()].some(i=>d[i*4+3]<10))warn.push('нет прозрачного фона — включи No background');
+  if(Math.max(cv.width,cv.height)>need*1.6)warn.push(`картинка ${cv.width}×${cv.height}, а нужен холст ${need}×${need}`);
+  const out=align([cv],Math.max(cv.width,cv.height));pic[id]=out;done(id,await store(id+'.png',out),warn)}
+
+// ---------- анимации: PNG-лист, GIF или несколько кадров → лента кадров в ряд ----------
+async function framesFrom(id,files){
+  if(files.length>1)return Promise.all([...files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true})).map(async f=>canvasOf(await createImageBitmap(f))));
+  const f=files[0];
+  if(/gif$/i.test(f.type)||/\.gif$/i.test(f.name)){if(!('ImageDecoder' in window))throw new Error('GIF умеет читать только Chrome. Скачай анимацию как PNG');
+    const dec=new ImageDecoder({data:await f.arrayBuffer(),type:'image/gif'});await dec.tracks.ready;const out=[];
+    for(let i=0;i<dec.tracks.selectedTrack.frameCount;i++){const r=await dec.decode({frameIndex:i});out.push(canvasOf(r.image));r.image.close()}return out}
+  const b=await createImageBitmap(f),W=b.width,H=b.height;
+  let s=[pic[id]&&pic[id].width,ART[id].size,64,96,128,48,32].filter(Boolean).find(s=>W%s===0&&H%s===0&&(W>s||H>s));
+  if(!s){if(W%H===0)s=H;else if(H%W===0)s=W;else throw new Error(`не понял, как разложены кадры (${W}×${H})`)}
+  const out=[];for(let y=0;y<H;y+=s)for(let x=0;x<W;x+=s){const c=document.createElement('canvas');c.width=s;c.height=s;c.getContext('2d').drawImage(b,x,y,s,s,0,0,s,s);if(opaque(c))out.push(c)}
+  return out}
+// общая рамка по всем кадрам: существо стоит на нижнем крае по центру и не дёргается
+function align(frames,f){let x0=1e9,y0=1e9,x1=-1,y1=-1;
+  frames.forEach(c=>{const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+    for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>=10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}});
+  f=Math.max(f,x1-x0+1,y1-y0+1);const dx=Math.floor((f-(x1-x0+1))/2)-x0,dy=f-1-y1,out=document.createElement('canvas');out.width=f*frames.length;out.height=f;const g=out.getContext('2d');
+  frames.forEach((c,i)=>{g.save();g.beginPath();g.rect(i*f,0,f,f);g.clip();g.drawImage(c,i*f+dx,dy);g.restore()});return out}
+async function onAnim(id,k,files){try{const fr=await framesFrom(id,files);if(!fr.length)return done(id,'<span class="bad">Кадров не нашлось</span>');
+  const warn=fr.length<3?['мало кадров — для плавности лучше 4–8']:[],out=align(fr,Math.max(...fr.map(c=>Math.max(c.width,c.height))));
+  pic[key(id,k)]=out;if(k==='attack')play[id]=performance.now();done(id,`${KINDS[k]}: ${fr.length} ${frames(fr.length)}. `+await store(key(id,k)+'.png',out),warn)}
+  catch(e){done(id,`<span class="bad">${e.message}</span>`)}}
+const frames=n=>n%10===1&&n%100!==11?'кадр':n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?'кадра':'кадров';
+function done(id,text,warn=[]){renderCard(id);renderBar();$('#st_'+id).innerHTML=`<span class="${warn.length?'gold':'ok'}">${text}${warn.length?'. Внимание: '+warn.join('; '):''}</span>`}
+function onFiles(id,k,files){if(!files||!files.length)return;if(k==='sprite')onSprite(id,files[0]);else onAnim(id,k,files)}
 
 // ---------- отрисовка ----------
+function slotHTML(id,k){const n=key(id,k),t=textFor(id,k);
+  return`<div class="slot" data-id="${id}" data-k="${k}"><div class="row"><span class="px small">${KINDS[k]}</span>${pic[n]?'<span class="ok-mark">✓ есть</span>':''}<span style="flex:1"></span>
+    <button data-copy="${id}" data-k="${k}">Копировать</button><label class="up"><input type="file" accept="${k==='sprite'?'image/png':'image/png,image/gif'}" ${k==='sprite'?'':'multiple'} data-up="${id}" data-k="${k}">${pic[n]?'Заменить':'Загрузить'}</label></div>
+    ${k==='sprite'?`<textarea readonly rows="3">${t}</textarea>`:`<div class="act">${t}</div>`}</div>`}
 function cardHTML(id){const a=ART[id],c=CR[id];
-  return`<div class="card ${have[id]?'done':''}" id="c_${id}" data-id="${id}"><div class="pv"><canvas id="pv_${id}" width="160" height="120"></canvas><div class="tag">${have[id]?'загружен':'временный'}</div></div>
+  return`<div class="card ${pic[id]?'done':''}" id="c_${id}"><div class="pv"><canvas id="pv_${id}" width="160" height="120"></canvas><div class="tag">${pic[id]?'загружен':'временный'}</div>
+    ${pic[key(id,'attack')]?`<div class="row" style="margin-top:6px"><button data-play="${id}">▶ Показать атаку</button></div>`:''}</div>
   <div class="info"><div class="row"><span class="px small ${c.boss?'gold':''}">${c.boss?'★ ':''}${c.n}</span><span class="small muted">файл ${id}.png · холст ${a.size}×${a.size} · ${DIRS[a.dir]}</span></div>
   ${c.lore?`<div class="small muted">${c.lore}</div>`:''}
   ${ART_REF[id]?`<div class="small">Референс (общественное достояние): ${ART_REF[id][0]} — <a class="gold" target="_blank" rel="noopener" href="https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(ART_REF[id][1])}">найти на Викискладе</a></div>`:''}
-  <textarea readonly rows="4">${ART_STYLE}, ${a.p}</textarea>
-  <div class="row"><button data-copy="${id}">Копировать промпт</button><label class="up"><input type="file" accept="image/png" data-up="${id}">${have[id]?'Заменить PNG':'Загрузить PNG'}</label><span class="small muted">или перетащи файл на карточку</span></div>
+  ${kinds(id).map(k=>slotHTML(id,k)).join('')}
   <div class="small" id="st_${id}"></div></div></div>`}
 function renderCard(id){const el=$('#c_'+id);if(!el)return;const st=$('#st_'+id).innerHTML;el.outerHTML=cardHTML(id);$('#st_'+id).innerHTML=st;paintPreview(id)}
-function renderBar(){const n=Object.keys(ART).length,k=Object.keys(ART).filter(id=>have[id]).length;
-  $('#bar').innerHTML=`<span class="px small">Готово ${k} из ${n}</span><div class="bar m" style="flex:1"><i style="width:${k/n*100}%"></i></div>
-  <button data-f="all" class="${filter==='all'?'on':''}">Все</button><button data-f="missing" class="${filter==='missing'?'on':''}">Ещё не нарисованы</button>`}
+function renderBar(){const ids=Object.keys(ART),n=ids.length,k=ids.filter(id=>pic[id]).length,an=ids.reduce((s,id)=>s+kinds(id).length-1,0),ak=ids.reduce((s,id)=>s+kinds(id).filter(x=>x!=='sprite'&&pic[key(id,x)]).length,0);
+  $('#bar').innerHTML=`<span class="px small">Спрайтов ${k} из ${n} · анимаций ${ak} из ${an}</span><div class="bar m" style="flex:1"><i style="width:${(k+ak)/(n+an)*100}%"></i></div>
+  <button data-f="all" class="${filter==='all'?'on':''}">Все</button><button data-f="missing" class="${filter==='missing'?'on':''}">Не готовы</button>`}
 function renderFolder(){$('#folder').innerHTML=!fsOK?`<p class="gold">Этот браузер не умеет сохранять прямо в папку (это умеет Chrome). Файлы будут скачиваться с правильными именами — перенеси их в <code>equation-dungeon/assets/sprites</code>.</p>`:
   dir?`<div class="row"><span>Сохраняю в папку <b class="gold">${dir.name}</b></span><button data-pick>Выбрать другую</button></div>`:
   `<div class="row"><span>Один раз выбери папку <code>equation-dungeon/assets/sprites</code>, и мастерская будет сама класть туда картинки.</span><button class="main" data-pick>Выбрать папку</button></div>`}
-function renderAll(){renderFolder();renderBar();
-  $('#list').innerHTML=GROUPS.map(g=>{const ids=g.ids.filter(id=>filter==='all'||!have[id]);return ids.length?`<div class="panel"><h2>${g.name}</h2>${ids.map(cardHTML).join('')}</div>`:''}).join('')||'<div class="panel"><p class="ok">Вся нечисть нарисована!</p></div>';
-  Object.keys(ART).forEach(paintPreview)}
+function renderAll(){renderFolder();renderBar();const ready=id=>kinds(id).every(k=>pic[key(id,k)]);
+  $('#list').innerHTML=GROUPS.map(g=>{const ids=g.ids.filter(id=>filter==='all'||!ready(id));return ids.length?`<div class="panel"><h2>${g.name}</h2>${ids.map(cardHTML).join('')}</div>`:''}).join('')||'<div class="panel"><p class="ok">Вся нечисть готова!</p></div>';
+  Object.keys(ART).forEach(id=>paintPreview(id))}
 
-document.addEventListener('click',e=>{const t=e.target;
-  if(t.dataset.copy)copy(`${ART_STYLE}, ${ART[t.dataset.copy].p}`);
-  else if(t.hasAttribute('data-neg'))copy(ART_NEG);
-  else if(t.hasAttribute('data-pick'))pickDir();
-  else if(t.dataset.f){filter=t.dataset.f;renderAll()}});
-document.addEventListener('change',e=>{const id=e.target.dataset.up;if(id)onFile(id,e.target.files[0])});
-document.addEventListener('dragover',e=>{const c=e.target.closest('.card');if(c){e.preventDefault();c.classList.add('drag')}});
-document.addEventListener('dragleave',e=>{const c=e.target.closest('.card');if(c)c.classList.remove('drag')});
-document.addEventListener('drop',e=>{const c=e.target.closest('.card');if(!c)return;e.preventDefault();c.classList.remove('drag');onFile(c.dataset.id,e.dataTransfer.files[0])});
-ATL.addEventListener('load',()=>Object.keys(ART).forEach(paintPreview));
+document.addEventListener('click',e=>{const t=e.target,d=t.dataset;
+  if(d.copy)copy(textFor(d.copy,d.k));else if(t.hasAttribute('data-neg'))copy(ART_NEG);else if(t.hasAttribute('data-pick'))pickDir();
+  else if(d.play)play[d.play]=performance.now();else if(d.f){filter=d.f;renderAll()}});
+document.addEventListener('change',e=>{const d=e.target.dataset;if(d.up)onFiles(d.up,d.k,e.target.files)});
+document.addEventListener('dragover',e=>{const s=e.target.closest('.slot');if(s){e.preventDefault();s.classList.add('drag')}});
+document.addEventListener('dragleave',e=>{const s=e.target.closest('.slot');if(s)s.classList.remove('drag')});
+document.addEventListener('drop',e=>{const s=e.target.closest('.slot');if(!s)return;e.preventDefault();s.classList.remove('drag');onFiles(s.dataset.id,s.dataset.k,e.dataTransfer.files)});
+ATL.addEventListener('load',()=>Object.keys(ART).forEach(id=>paintPreview(id)));
 (async()=>{if(fsOK){try{dir=await kv('dir')||null;if(dir)await scan()}catch(e){dir=null}}renderAll();probe()})();
 </script>
 </body>

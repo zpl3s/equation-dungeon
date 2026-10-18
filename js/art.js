@@ -39,3 +39,11 @@ mara:{size:64,dir:'west',p:'mara, spirit of death and nightmares, tall thin woma
 morok:{size:64,dir:'west',p:'morok, shapeless dark fog creature with many glowing red eyes and shadowy tendrils'},
 koschei:{size:96,dir:'west',p:'koschei the deathless, skeletal old king in black armour and tall spiked crown, long white beard, green glowing eyes, holding a sword'},
 };
+// известные изображения в общественном достоянии — можно класть в Reference images
+const ART_REF={
+strelets:['гравюры и рисунки стрельцов XVII века','Streltsy'],
+yaga:['Иван Билибин, «Баба-Яга» (иллюстрация к «Василисе Прекрасной», 1900)','Bilibin Baba Yaga'],
+koschei:['Виктор Васнецов, «Кощей Бессмертный» (1917–1926)','Vasnetsov Koschei'],
+gorynych:['Виктор Васнецов, «Бой Добрыни Никитича с семиглавым Змеем Горынычем» (1913–1918)','Vasnetsov Dobrynya Zmey'],
+rusalka:['Иван Крамской, «Русалки» (1871)','Kramskoi Mermaids'],
+};

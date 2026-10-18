@@ -58,6 +58,14 @@ strelets:{n:'Стрелец',b:'hero',sw:{b:'#a8302a',B:'#6a1a16',l:'#7a5a3a',y:
 kot:{n:'Кот Учёный',b:'cat',lore:''},
 };
 
+// ---------- как существо «дышит» в покое (процедурная анимация) ----------
+const MOTIONS={breathe:{sway:1.2,br:.025,fl:0,spd:2.2,hem:0},float:{sway:1,br:.01,fl:2.5,spd:1.6,hem:1.6},heavy:{sway:.8,br:.035,fl:0,spd:1.2,hem:0},
+  squish:{sway:.5,br:.07,fl:0,spd:3,hem:0},sway:{sway:2.6,br:.02,fl:0,spd:1.5,hem:0},flicker:{sway:1,br:.02,fl:1.5,spd:2.5,hem:1,flick:1}};
+const MOTION_BASE={ghost:'float',slime:'squish',serpent:'sway',golem:'heavy'};
+const MOTION_ID={poludnitsa:'float',mavka:'float',rusalka:'float',nav:'float',mara:'float',igosha:'float',div:'float',blud:'flicker',ognenny:'flicker',morok:'flicker',
+  lesavka:'squish',vodyanoy:'heavy',leshy:'heavy',viy:'heavy',gorynych:'sway',poloz:'sway',koschei:'heavy'};
+const motion=id=>MOTIONS[MOTION_ID[id]||MOTION_BASE[CR[id].b]||'breathe'];
+
 // ---------- временные спрайты кодом: 16 строк по 8 символов, правая половина зеркалится ----------
 const PAL={k:'#1b1325',w:'#f2f0e6',l:'#b8b8c8',e:'#6e6e80',E:'#3d3d4d',r:'#d8413a',R:'#8a1f2a',y:'#f5d04a',g:'#5bc04a',G:'#2f7a32',c:'#6fd3e8',b:'#3f6fd8',B:'#23367a',p:'#9a4fd0',P:'#552a80',s:'#f0b88a',n:'#9a6232',N:'#5a3418',a:'#8a8a9a'};
 const SPR={

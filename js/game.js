@@ -26,23 +26,47 @@ function record(t,ok,s){const q=st(t.id);q.n++;q.r.push(ok?1:0);if(q.r.length>10
 function gainXP(x){S.xp+=x;run.xp+=x;while(S.xp>=need(S.lvl)){S.xp-=need(S.lvl);S.lvl++;run.hp+=5;toast(`Новый уровень ${S.lvl}! +5 HP, +5% урона`)}}
 
 // ---------- спрайты: PNG из assets/sprites/<id>.png, иначе временный спрайт кодом ----------
-const IMG={};
-function png(id){if(!(id in IMG)){IMG[id]=null;const im=new Image();im.onload=()=>{IMG[id]=im;paintAll()};im.onerror=()=>{IMG[id]=false};im.src=`assets/sprites/${id}.png`}return IMG[id]}
-function paintCr(cv){const id=cv.dataset.cr,sz=+cv.dataset.sz,g=cv.getContext('2d'),im=png(id);cv.width=sz;cv.height=sz;g.imageSmoothingEnabled=false;
-  if(im){let sc=sz/Math.max(im.width,im.height);if(sc>=1)sc=Math.floor(sc);const w=im.width*sc,h=im.height*sc;g.drawImage(im,(sz-w)/2,sz-h,w,h);return}
-  const c=CR[id],sw=c.sw||{},sc=sz/16;
-  SPR[c.b].split('|').forEach((r,y)=>[...r+[...r].reverse().join('')].forEach((ch,x)=>{if(ch==='.')return;g.fillStyle=sw[ch]||PAL[ch];g.fillRect(x*sc,y*sc,sc,sc)}))}
-// анимации: assets/sprites/<id>_idle.png и <id>_attack.png — кадры в ряд, квадратные
-const ANIM={};
+// Оживляем процедурно из одной картинки: дыхание, покачивание, парение, замах, вспышка от попадания, рассыпание при гибели.
+// Если появятся настоящие анимации <id>_idle.png / <id>_attack.png (кадры в ряд), берём их.
+const IMG={},SRC={},ANIM={};
+function png(id){if(!(id in IMG)){IMG[id]=null;const im=new Image();im.onload=()=>{IMG[id]=im;delete SRC[id];paintAll()};im.onerror=()=>{IMG[id]=false};im.src=`assets/sprites/${id}.png`}return IMG[id]}
 function strip(id,kind){const k=id+'_'+kind;if(!(k in ANIM)){ANIM[k]=null;const im=new Image();im.onload=()=>{ANIM[k]={im,f:im.height,n:Math.max(1,Math.round(im.width/im.height))}};im.onerror=()=>{ANIM[k]=false};im.src=`assets/sprites/${k}.png`}return ANIM[k]}
-function drawFrame(cv,a,i){const sz=+cv.dataset.sz,g=cv.getContext('2d');let sc=sz/a.f;if(sc>=1)sc=Math.floor(sc);const w=a.f*sc;
-  g.imageSmoothingEnabled=false;g.clearRect(0,0,sz,sz);g.drawImage(a.im,i*a.f,0,a.f,a.f,(sz-w)/2,sz-w,w,w)}
-function playAnim(cv,kind){if(!cv||!strip(cv.dataset.cr,kind))return false;cv._play={kind,t0:performance.now()};return true}
-function animLoop(t){document.querySelectorAll('canvas[data-cr]').forEach(cv=>{const id=cv.dataset.cr,idle=strip(id,'idle'),p=cv._play;
-  if(p){const a=strip(id,p.kind),i=Math.floor((t-p.t0)/1000*12);if(a&&i<a.n)return drawFrame(cv,a,i);cv._play=null;if(!idle)paintCr(cv)}
-  if(idle){cv.classList.remove('bob');drawFrame(cv,idle,Math.floor(t/1000*7)%idle.n)}});requestAnimationFrame(animLoop)}
+// исходник в родном разрешении: PNG как есть (квадрат, по низу), временный спрайт — 16×16 ×2
+function source(id){if(SRC[id])return SRC[id];const im=png(id),c=document.createElement('canvas'),g=c.getContext('2d');
+  if(im){c.width=c.height=Math.max(im.width,im.height);g.drawImage(im,(c.width-im.width)/2,c.height-im.height)}
+  else{c.width=c.height=32;const o=CR[id],sw=o.sw||{};SPR[o.b].split('|').forEach((r,y)=>[...r+[...r].reverse().join('')].forEach((ch,x)=>{if(ch!=='.'){g.fillStyle=sw[ch]||PAL[ch];g.fillRect(x*2,y*2,2,2)}}))}
+  if(im!==null)SRC[id]=c;return c}
+const FR=document.createElement('canvas'),FG=FR.getContext('2d');
+function blit(g,sz,im,sx,f){let sc=sz/f;if(sc>=1)sc=Math.floor(sc);const w=f*sc;g.drawImage(im,sx,0,f,f,(sz-w)/2,sz-w,w,w)}
+function renderCr(cv,t){const id=cv.dataset.cr,sz=+cv.dataset.sz,g=cv.getContext('2d');if(cv.width!==sz){cv.width=sz;cv.height=sz}g.imageSmoothingEnabled=false;g.clearRect(0,0,sz,sz);
+  const idle=strip(id,'idle'),p=cv._play;
+  if(p){const a=strip(id,p.kind),i=Math.floor((t-p.t0)/1000*12);if(a&&i<a.n)return blit(g,sz,a.im,i*a.f,a.f);cv._play=null}
+  if(idle&&!cv._hurt&&!cv._die)return blit(g,sz,idle.im,(Math.floor(t/1000*7)%idle.n)*idle.f,idle.f);
+  const s=source(id),f=s.width,k=f/64,m=motion(id),tt=Math.floor(t/83)*.083,face=cv.dataset.face==='r'?1:-1;
+  let lean=0,aq=-1;if(cv._atk){aq=(t-cv._atk)/450;if(aq>=1){cv._atk=0;aq=-1}else lean=(aq<.3?-3*aq/.3:aq<.55?6:6*(1-(aq-.55)/.45))*face}
+  const sw=m.sway*Math.sin(tt*m.spd)*k,br=m.br*Math.sin(tt*m.spd*1.7),fl=Math.round(m.fl*Math.sin(tt*m.spd*.8)*k);
+  FR.width=FR.height=f;
+  for(let y=0;y<f;y++){const h=(f-1-y)/f,sy=f-1-Math.round((f-1-y)/(1+br));if(sy<0)continue;  // h: 0 у ног, 1 у макушки
+    const dx=Math.round(sw*h*h+lean*k*h+m.hem*k*Math.sin(tt*3+y*.3/k)*(1-h)*(1-h));FG.drawImage(s,0,sy,f,1,dx,y-fl,f,1)}
+  if(cv._hurt){const q=(t-cv._hurt)/200;if(q>=1)cv._hurt=0;else{FG.globalCompositeOperation='source-atop';FG.fillStyle=`rgba(255,255,255,${.85*(1-q)})`;FG.fillRect(0,0,f,f);FG.globalCompositeOperation='source-over'}}
+  if(cv._die){const q=Math.min(1,(t-cv._die)/900),d=FG.getImageData(0,0,f,f).data,o=FG.createImageData(f,f);
+    for(let y=0;y<f;y++)for(let x=0;x<f;x++){const i=(y*f+x)*4;if(!d[i+3]||((x*73+y*151)%97)/97<q)continue;const ny=y-Math.round(q*q*f*.3*((x*31)%7)/7);if(ny<0)continue;
+      const j=(ny*f+x)*4;o.data.set(d.subarray(i,i+4),j);o.data[j+3]*=1-q*.6}
+    FG.putImageData(o,0,0)}
+  if(face>0&&aq>=0){if(aq>.28&&aq<.55){FG.fillStyle='#fff6c0';FG.fillRect(f*.86,f*.46,3*k+1,3*k+1);FG.fillStyle='#e8862a';FG.fillRect(f*.86-k,f*.46+k,2*k+1,2*k+1)}   // вспышка выстрела
+    else if(aq>=.55){FG.fillStyle=`rgba(170,160,150,${1-aq})`;FG.beginPath();FG.arc(f*.9+aq*8*k,f*.42-aq*10*k,(2+aq*6)*k,0,7);FG.fill()}}                       // дымок
+  const sc=sz/f>=1?Math.floor(sz/f):sz/f,w=f*sc;g.globalAlpha=m.flick?.75+.25*Math.sin(t/60):1;g.drawImage(FR,(sz-w)/2,sz-w,w,w);g.globalAlpha=1}
+const paintCr=cv=>renderCr(cv,performance.now());
+const attackFx=cv=>{if(!cv)return;if(strip(cv.dataset.cr,'attack'))cv._play={kind:'attack',t0:performance.now()};else cv._atk=performance.now()};
+const hurtFx=cv=>{if(cv)cv._hurt=performance.now()};
+function fxAt(cls,x,y,w,ms){const a=$('#arena'),d=document.createElement('div');d.className=cls;d.style.cssText=`left:${x}px;top:${y}px;${w}`;a.appendChild(d);setTimeout(()=>d.remove(),ms)}
+function tracer(k){const a=$('#arena'),h=$('#hero canvas'),m=$('#m'+k+' canvas');if(!a||!h||!m)return;const ra=a.getBoundingClientRect(),rh=h.getBoundingClientRect(),rm=m.getBoundingClientRect();if(!rh.width)return;
+  const x1=rh.left+rh.width*.9-ra.left,y1=rh.top+rh.height*.48-ra.top,x2=rm.left+rm.width*.5-ra.left,y2=rm.top+rm.height*.55-ra.top;
+  fxAt('tracer',x1,y1,`width:${Math.hypot(x2-x1,y2-y1)}px;transform:rotate(${Math.atan2(y2-y1,x2-x1)}rad)`,260)}
+function slashFx(){const a=$('#arena'),h=$('#hero canvas');if(!a||!h)return;const ra=a.getBoundingClientRect(),rh=h.getBoundingClientRect();if(!rh.width)return;fxAt('slash',rh.left-ra.left+rh.width*.25,rh.top-ra.top+rh.height*.25,'',320)}
+let lastT=0;function animLoop(t){if(t-lastT>=83){lastT=t;document.querySelectorAll('canvas[data-cr]').forEach(cv=>renderCr(cv,t))}requestAnimationFrame(animLoop)}
 requestAnimationFrame(animLoop);
-const cr=(id,sz=128,cls='bob')=>`<canvas data-cr="${id}" data-sz="${sz}" class="${cls}" style="width:${sz}px;height:${sz}px"></canvas>`;
+const cr=(id,sz=128,cls='',face='l')=>`<canvas data-cr="${id}" data-sz="${sz}" data-face="${face}" class="${cls}" style="width:${sz}px;height:${sz}px"></canvas>`;
 function paintAll(){document.querySelectorAll('canvas[data-cr]').forEach(paintCr);const a=$('#arenaBg');if(a&&run)paintArena(a,run.zi);const m=$('#map');if(m){if(!MB)buildMap(zOpen);paintMap(m,mapState())}}
 ATL.addEventListener('load',()=>{MB=null;paintAll()});
 document.fonts&&document.fonts.ready.then(paintAll);
@@ -148,7 +172,7 @@ function enterRoom(){view=null;const p=PLAN[run.step],Z=ZONES[run.zi];
 const stageName=()=>{const p=PLAN[run.step];return p==='boss'?'<span class="bad">Хозяин</span>':'Поляна '+PLAN.slice(0,run.step+1).filter(x=>typeof x==='number').length+'/4'};
 function battle(){
   app.innerHTML=`<div class="panel row" id="hud"></div>
-  <div class="panel arena" id="arena"><canvas id="arenaBg"></canvas><div id="hero">${cr('strelets',128)}</div>
+  <div class="panel arena" id="arena"><canvas id="arenaBg"></canvas><div id="hero">${cr('strelets',128,'','r')}</div>
     <div class="mons">${run.mons.map((m,k)=>`<div class="mon" id="m${k}" data-act="sel" data-i="${k}"><div class="mname px">${m.name}</div>${cr(m.id,m.boss?192:128)}<div class="bar m"><i></i></div></div>`).join('')}</div></div>
   <div class="panel">
     <div class="px small muted" id="tinfo"></div><div class="eq" id="eq"></div><div class="hintbox" id="hint"></div>
@@ -181,14 +205,14 @@ function hit(){if(!run||busy)return;const k=run.tg,m=run.mons[k];if(!m||m.hp<=0)
     const sp=spd(s,t.par),crit=sp>=2,dmg=Math.max(1,Math.round(10*t.d*sp*cm()*atk()*(e.hinted?.5:1)));
     run.ok++;run.time+=s;run.combo++;run.maxc=Math.max(run.maxc,run.combo);if(crit)run.crits++;
     gainXP(5*t.d+(crit?5:0));m.hp-=dmg;
-    if(!playAnim($('#hero canvas'),'attack'))anim($('#hero canvas'),'lunge');anim($('#m'+k+' canvas'),'shake');pop(k,(crit?'КРИТ! ':'')+'−'+dmg,crit);
+    attackFx($('#hero canvas'));tracer(k);hurtFx($('#m'+k+' canvas'));anim($('#m'+k+' canvas'),'shake');pop(k,(crit?'КРИТ! ':'')+'−'+dmg,crit);
     let txt=`${crit?'Точно в сердце!':'Попал!'} ${Math.round(s)} с · урон ${dmg}`;
-    if(m.hp<=0){const g=m.boss?40:3+2*t.d;S.gold+=g;run.gold+=g;S.met[m.id]=(S.met[m.id]||0)+1;txt+=` · ${m.name} повержен! +${g} з.`;
+    if(m.hp<=0){$('#m'+k+' canvas')._die=performance.now()+120;const g=m.boss?40:3+2*t.d;S.gold+=g;run.gold+=g;S.met[m.id]=(S.met[m.id]||0)+1;txt+=` · ${m.name} повержен! +${g} з.`;
       if(m.boss&&!zBeaten(run.zi)){S.beaten.push(ZONES[run.zi].id);const nz=ZONES[run.zi+1];if(nz){run.newZone=nz.name;toast(`Путь открыт: ${nz.name}`)}}}
     else m.eq=m.boss?bossEq():newEq(m.ti);
     msg(txt,crit?'gold':'ok');
   }else{
-    run.combo=0;run.hp-=m.atk;run.lastWrong=e;if(!playAnim($('#m'+k+' canvas'),'attack'))anim($('#m'+k+' canvas'),'lungel');anim($('#arena'),'flash');
+    run.combo=0;run.hp-=m.atk;run.lastWrong=e;attackFx($('#m'+k+' canvas'));anim($('#m'+k+' canvas'),'lungel');setTimeout(()=>{slashFx();hurtFx($('#hero canvas'))},130);anim($('#arena'),'flash');
     msg(`Мимо. ${m.name} бьёт на ${m.atk}. <button data-act="sol">Показать решение</button>`,'bad');m.eq=m.boss?bossEq():newEq(m.ti);
   }
   save();updHUD();updMon(k);

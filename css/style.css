@@ -37,7 +37,10 @@ canvas{image-rendering:pixelated;display:block}
 .mon{position:relative;cursor:pointer;padding:6px;border:2px dashed transparent;text-align:center}
 .mon canvas{margin:0 auto}
 .mon.sel{border-color:var(--gold)}
-.mon.dead{opacity:.12;filter:grayscale(1);pointer-events:none;transition:opacity .6s}
+.mon.dead{pointer-events:none}.mon.dead .bar,.mon.dead .mname{opacity:.3}
+.tracer{position:absolute;height:2px;background:linear-gradient(90deg,#fff6c0,rgba(232,134,42,0));transform-origin:0 50%;z-index:3;pointer-events:none;animation:fade .26s forwards}
+.slash{position:absolute;width:64px;height:64px;z-index:3;pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 14px,#d8413a 14px 18px,transparent 18px 26px);animation:slash .32s forwards}
+@keyframes fade{to{opacity:0}}@keyframes slash{0%{opacity:0;transform:scale(.6)}30%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.1)}}
 .mon .bar{margin-top:4px}
 .mname{font-size:9px;color:#efe3c8;text-shadow:1px 1px 0 #000;margin-bottom:4px}
 .eq{font:30px ui-monospace,Menlo,monospace;margin:10px 0;word-break:break-word}

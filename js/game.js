@@ -146,7 +146,8 @@ function battle(){
     <div class="row" style="margin-top:12px"><span id="timer" class="px small"></span><span style="flex:1"></span><button data-act="scroll" id="bs"></button><button data-act="potion" id="bp"></button></div>
     <div class="msg" id="msg"></div><div id="sol"></div>
   </div>`;
-  paintAll();updHUD();run.mons.forEach((_,k)=>updMon(k));
+  run.mons.forEach(m=>['idle','attack','spawn'].forEach(k=>strip(m.id,k)));
+  paintAll();updHUD();run.mons.forEach((_,k)=>{updMon(k);spawnFx($('#m'+k+' canvas'),k*180)});
   $('#ans').addEventListener('keydown',e=>{if(e.key==='Enter')hit()});
   clearInterval(tick);tick=setInterval(updTimer,250)}
 function updHUD(){const mx=maxHP(),hp=Math.max(0,run.hp);

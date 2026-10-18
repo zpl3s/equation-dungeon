@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Мастерская спрайтов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:wght@400;700&family=Press+Start+2P&family=Ruslan+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.card{display:flex;gap:16px;background:var(--panel2);border:2px solid var(--line);padding:12px;margin-bottom:12px}
+.card.done{border-color:#6a8a3a}
+.card.drag{border-color:var(--gold);background:#33261a}
+.pv{position:relative;flex:none}
+.pv canvas{width:320px;height:240px}
+.tag{position:absolute;left:6px;top:6px;font:9px 'Press Start 2P',monospace;background:#000b;padding:4px 6px}
+.done .tag{color:var(--ok)}
+.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+textarea{width:100%;font:14px/1.4 ui-monospace,Menlo,monospace;background:#0a0706;color:var(--text);border:2px solid var(--line);padding:8px;resize:vertical}
+.up{display:inline-block;font:10px 'Press Start 2P',monospace;background:#6a1e1a;border:2px solid #c8803a;color:#f6e6c8;padding:9px 11px;cursor:pointer}
+.up input{display:none}
+.how li{margin-bottom:8px}
+code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
+.set{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:15px}
+@media (max-width:700px){.card{flex-direction:column}.pv canvas{width:100%;height:auto}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="panel"><h1>Мастерская спрайтов</h1>
+    <p>Здесь собрана вся нечисть, которую нужно нарисовать. Для каждого существа есть готовый промпт и настройки для PixelLab, а загруженная картинка сразу сохраняется в игру. Открывай эту страницу двойным кликом по <code>studio.html</code> в папке проекта, лучше в Chrome.</p></div>
+
+  <div class="panel how"><h2>Как генерировать в PixelLab</h2><ol>
+    <li>Открой <a class="gold" href="https://www.pixellab.ai" target="_blank" rel="noopener">pixellab.ai</a> и войди (Sign in). На пробу дают немного бесплатных генераций.</li>
+    <li>Открой простой веб-генератор (<a class="gold" href="https://www.pixellab.ai/create" target="_blank" rel="noopener">Create</a>) и выбери инструмент <b>Create M-XL image</b> (модель Pixflux).</li>
+    <li>Выставь настройки как в карточке существа:
+      <div class="set" style="margin:8px 0">
+        <span class="muted">Размер холста</span><span>64×64, у хозяев зон (★) — 96×96</span>
+        <span class="muted">Description</span><span>кнопка «Копировать промпт» в карточке</span>
+        <span class="muted">Negative description</span><span><button data-neg>Копировать</button></span>
+        <span class="muted">Camera view</span><span>side (вид сбоку)</span>
+        <span class="muted">Direction</span><span>как в карточке: нечисть — west (смотрит влево), стрелец — east</span>
+        <span class="muted">Outline / Shading / Details</span><span>тёмный контур, подробные тени, высокая детализация</span>
+        <span class="muted">Remove background</span><span>включить — нужен прозрачный фон</span>
+        <span class="muted">Target Palette</span><span>по желанию: <a class="gold" href="assets/palette.png" download="palette.png">palette.png</a>, тогда цвета совпадут с лесом</span>
+      </div>
+      Если пункты называются чуть иначе, выбирай ближайшие.</li>
+    <li>Жми Generate. Не нравится — сгенерируй ещё раз или поправь промпт. Понравилось — скачай PNG и загрузи в карточку ниже (кнопкой или перетаскиванием).</li>
+    <li>Открой игру (<code>index.html</code>): новые спрайты уже там. Загрузишь несколько — скажи мне, я выложу их на сайт.</li>
+  </ol></div>
+
+  <div class="panel" id="folder"></div>
+  <div class="panel row" id="bar"></div>
+  <div id="list"></div>
+</div>
+<div id="toast"></div>
+<script src="assets/env/atlas.js"></script>
+<script src="js/world.js"></script>
+<script src="js/map.js"></script>
+<script src="js/art.js"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const GROUPS=[{name:'Герои',ids:['strelets','kot'],zi:0},...ZONES.map((z,zi)=>({name:z.name,ids:[...z.mobs,z.boss],zi}))];
+const ZONE_OF={};GROUPS.forEach(g=>g.ids.forEach(id=>ZONE_OF[id]=g.zi));
+const DIRS={east:'east — смотрит вправо',west:'west — смотрит влево',south:'south — смотрит на нас'};
+const fsOK='showDirectoryPicker' in window;
+let dir=null,filter='all';const have={},img={},bg={};
+
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('#toast').appendChild(d);setTimeout(()=>d.remove(),3500)}
+async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}toast('Скопировано')}
+
+// ---------- папка assets/sprites: доступ через File System Access, ручка хранится в IndexedDB ----------
+const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open('studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+async function kv(k,v){const db=await idb();return new Promise(ok=>{const tx=db.transaction('kv',v===undefined?'readonly':'readwrite'),s=tx.objectStore('kv');
+  if(v===undefined){const q=s.get(k);q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)}else{s.put(v,k);tx.oncomplete=()=>ok()}})}
+async function perm(ask){if(!dir)return false;const o={mode:'readwrite'};if(await dir.queryPermission(o)==='granted')return true;return ask&&(await dir.requestPermission(o))==='granted'}
+async function pickDir(){try{const h=await showDirectoryPicker({id:'sprites',mode:'readwrite'});
+  if(h.name!=='sprites'&&!confirm(`Выбрана папка «${h.name}». Нужна папка equation-dungeon/assets/sprites. Всё равно сохранять сюда?`))return;
+  dir=h;await kv('dir',h);await scan();renderAll()}catch(e){if(e.name!=='AbortError')toast('Не вышло: '+e.message)}}
+async function scan(){if(!await perm(false))return;for await(const[name,h]of dir.entries()){const m=name.match(/^(.+)\.png$/);
+  if(m&&ART[m[1]]){have[m[1]]=true;try{img[m[1]]=await createImageBitmap(await h.getFile())}catch(e){}}}}
+function probe(){Object.keys(ART).forEach(id=>{const im=new Image();im.onload=()=>{if(!img[id]){have[id]=true;img[id]=im;renderCard(id);renderBar()}};im.src=`assets/sprites/${id}.png?${Date.now()}`})}
+
+// ---------- превью: фон боя зоны + спрайт в игровом масштабе ----------
+function arenaBg(zi){if(!bg[zi]&&ATL.complete){bg[zi]=document.createElement('canvas');paintArena(bg[zi],zi)}return bg[zi]}
+function paintPreview(id){const cv=$('#pv_'+id);if(!cv)return;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;const zi=ZONE_OF[id];
+  g.fillStyle=ZONES[zi].sky[1];g.fillRect(0,0,160,120);const b=arenaBg(zi);if(b)g.drawImage(b,-140,2);
+  const im=img[id],a=ART[id];
+  if(im){g.drawImage(im,Math.round(80-im.width/2),114-im.height);return}
+  const c=CR[id],sw=c.sw||{},sc=a.size/16,ox=80-a.size/2,oy=114-a.size;g.globalAlpha=.55;
+  SPR[c.b].split('|').forEach((r,y)=>[...r+[...r].reverse().join('')].forEach((ch,x)=>{if(ch==='.')return;g.fillStyle=sw[ch]||PAL[ch];g.fillRect(ox+x*sc,oy+y*sc,sc,sc)}));g.globalAlpha=1}
+
+// ---------- загрузка: проверка, выравнивание по низу, сохранение ----------
+async function onFile(id,file){const st=$('#st_'+id);if(!file)return;
+  if(!/png$/i.test(file.type)&&!/\.png$/i.test(file.name)){st.innerHTML='<span class="bad">Нужен PNG-файл</span>';return}
+  const bmp=await createImageBitmap(file),w0=bmp.width,h0=bmp.height,cv=document.createElement('canvas');cv.width=w0;cv.height=h0;const g=cv.getContext('2d');g.drawImage(bmp,0,0);
+  const d=g.getImageData(0,0,w0,h0).data;let x0=w0,y0=h0,x1=-1,y1=-1,clear=0;
+  for(let y=0;y<h0;y++)for(let x=0;x<w0;x++){if(d[(y*w0+x)*4+3]<10){clear++;continue}if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1<0){st.innerHTML='<span class="bad">Картинка пустая</span>';return}
+  const warn=[],need=ART[id].size;
+  if(!clear)warn.push('нет прозрачного фона — включи Remove background');
+  if(Math.max(w0,h0)>need*1.6)warn.push(`картинка ${w0}×${h0}, а нужен холст ${need}×${need}`);
+  // холст оставляем прежнего размера, существо ставим ногами на нижний край по центру
+  const S=Math.max(w0,h0),w=x1-x0+1,h=y1-y0+1,out=document.createElement('canvas');out.width=S;out.height=S;
+  out.getContext('2d').drawImage(cv,x0,y0,w,h,Math.floor((S-w)/2),S-h,w,h);
+  const blob=await new Promise(r=>out.toBlob(r,'image/png'));img[id]=out;have[id]=true;
+  let where;
+  if(dir&&await perm(true)){const fh=await dir.getFileHandle(id+'.png',{create:true}),ws=await fh.createWritable();await ws.write(blob);await ws.close();where=`Сохранено: assets/sprites/${id}.png`}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=id+'.png';a.click();where=`Скачано как ${id}.png — перенеси в assets/sprites`}
+  renderCard(id);renderBar();
+  $('#st_'+id).innerHTML=`<span class="${warn.length?'gold':'ok'}">${where}${warn.length?'. Внимание: '+warn.join('; '):''}</span>`}
+
+// ---------- отрисовка ----------
+function cardHTML(id){const a=ART[id],c=CR[id];
+  return`<div class="card ${have[id]?'done':''}" id="c_${id}" data-id="${id}"><div class="pv"><canvas id="pv_${id}" width="160" height="120"></canvas><div class="tag">${have[id]?'загружен':'временный'}</div></div>
+  <div class="info"><div class="row"><span class="px small ${c.boss?'gold':''}">${c.boss?'★ ':''}${c.n}</span><span class="small muted">файл ${id}.png · холст ${a.size}×${a.size} · ${DIRS[a.dir]}</span></div>
+  ${c.lore?`<div class="small muted">${c.lore}</div>`:''}
+  <textarea readonly rows="4">${ART_STYLE}, ${a.p}</textarea>
+  <div class="row"><button data-copy="${id}">Копировать промпт</button><label class="up"><input type="file" accept="image/png" data-up="${id}">${have[id]?'Заменить PNG':'Загрузить PNG'}</label><span class="small muted">или перетащи файл на карточку</span></div>
+  <div class="small" id="st_${id}"></div></div></div>`}
+function renderCard(id){const el=$('#c_'+id);if(!el)return;const st=$('#st_'+id).innerHTML;el.outerHTML=cardHTML(id);$('#st_'+id).innerHTML=st;paintPreview(id)}
+function renderBar(){const n=Object.keys(ART).length,k=Object.keys(ART).filter(id=>have[id]).length;
+  $('#bar').innerHTML=`<span class="px small">Готово ${k} из ${n}</span><div class="bar m" style="flex:1"><i style="width:${k/n*100}%"></i></div>
+  <button data-f="all" class="${filter==='all'?'on':''}">Все</button><button data-f="missing" class="${filter==='missing'?'on':''}">Ещё не нарисованы</button>`}
+function renderFolder(){$('#folder').innerHTML=!fsOK?`<p class="gold">Этот браузер не умеет сохранять прямо в папку (это умеет Chrome). Файлы будут скачиваться с правильными именами — перенеси их в <code>equation-dungeon/assets/sprites</code>.</p>`:
+  dir?`<div class="row"><span>Сохраняю в папку <b class="gold">${dir.name}</b></span><button data-pick>Выбрать другую</button></div>`:
+  `<div class="row"><span>Один раз выбери папку <code>equation-dungeon/assets/sprites</code>, и мастерская будет сама класть туда картинки.</span><button class="main" data-pick>Выбрать папку</button></div>`}
+function renderAll(){renderFolder();renderBar();
+  $('#list').innerHTML=GROUPS.map(g=>{const ids=g.ids.filter(id=>filter==='all'||!have[id]);return ids.length?`<div class="panel"><h2>${g.name}</h2>${ids.map(cardHTML).join('')}</div>`:''}).join('')||'<div class="panel"><p class="ok">Вся нечисть нарисована!</p></div>';
+  Object.keys(ART).forEach(paintPreview)}
+
+document.addEventListener('click',e=>{const t=e.target;
+  if(t.dataset.copy)copy(`${ART_STYLE}, ${ART[t.dataset.copy].p}`);
+  else if(t.hasAttribute('data-neg'))copy(ART_NEG);
+  else if(t.hasAttribute('data-pick'))pickDir();
+  else if(t.dataset.f){filter=t.dataset.f;renderAll()}});
+document.addEventListener('change',e=>{const id=e.target.dataset.up;if(id)onFile(id,e.target.files[0])});
+document.addEventListener('dragover',e=>{const c=e.target.closest('.card');if(c){e.preventDefault();c.classList.add('drag')}});
+document.addEventListener('dragleave',e=>{const c=e.target.closest('.card');if(c)c.classList.remove('drag')});
+document.addEventListener('drop',e=>{const c=e.target.closest('.card');if(!c)return;e.preventDefault();c.classList.remove('drag');onFile(c.dataset.id,e.dataTransfer.files[0])});
+ATL.addEventListener('load',()=>Object.keys(ART).forEach(paintPreview));
+(async()=>{if(fsOK){try{dir=await kv('dir')||null;if(dir)await scan()}catch(e){dir=null}}renderAll();probe()})();
+</script>
+</body>
+</html>

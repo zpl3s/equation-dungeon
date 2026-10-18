@@ -28,13 +28,16 @@ function renderCr(cv,t){const id=cv.dataset.cr,sz=+cv.dataset.sz,g=cv.getContext
   for(let y=0;y<f;y++){const h=(f-1-y)/f,sy=f-1-Math.round((f-1-y)/(1+br));if(sy<0)continue;  // h: 0 у ног, 1 у макушки
     const dx=Math.round(sw*h*h+lean*k*h+m.hem*k*Math.sin(tt*3+y*.3/k)*(1-h)*(1-h));FG.drawImage(s,0,sy,f,1,dx,y-fl,f,1)}
   if(cv._hurt){const q=(t-cv._hurt)/200;if(q>=1)cv._hurt=0;else{FG.globalCompositeOperation='source-atop';FG.fillStyle=`rgba(255,255,255,${.85*(1-q)})`;FG.fillRect(0,0,f,f);FG.globalCompositeOperation='source-over'}}
-  if(cv._die){const q=Math.min(1,(t-cv._die)/900),d=FG.getImageData(0,0,f,f).data,o=FG.createImageData(f,f);
-    for(let y=0;y<f;y++)for(let x=0;x<f;x++){const i=(y*f+x)*4;if(!d[i+3]||((x*73+y*151)%97)/97<q)continue;const ny=y-Math.round(q*q*f*.3*((x*31)%7)/7);if(ny<0)continue;
-      const j=(ny*f+x)*4;o.data.set(d.subarray(i,i+4),j);o.data[j+3]*=1-q*.6}
-    FG.putImageData(o,0,0)}
+  if(cv._die)dissolve(f,Math.min(1,(t-cv._die)/900));
   if(face>0&&aq>=0){if(aq>.28&&aq<.55){FG.fillStyle='#fff6c0';FG.fillRect(f*.86,f*.46,3*k+1,3*k+1);FG.fillStyle='#e8862a';FG.fillRect(f*.86-k,f*.46+k,2*k+1,2*k+1)}   // вспышка выстрела
     else if(aq>=.55){FG.fillStyle=`rgba(170,160,150,${1-aq})`;FG.beginPath();FG.arc(f*.9+aq*8*k,f*.42-aq*10*k,(2+aq*6)*k,0,7);FG.fill()}}                       // дымок
   const sc=sz/f>=1?Math.floor(sz/f):sz/f,w=f*sc;g.globalAlpha=m.flick?.75+.25*Math.sin(t/60):1;g.drawImage(FR,(sz-w)/2,sz-w,w,w);g.globalAlpha=1}
+// рассыпание на пиксели; если картинка открыта с диска (file://), читать пиксели браузер не даёт — тогда просто тает
+function dissolve(f,q){let d;try{d=FG.getImageData(0,0,f,f).data}catch(e){FG.globalCompositeOperation='destination-out';FG.fillStyle=`rgba(0,0,0,${q})`;FG.fillRect(0,0,f,f);FG.globalCompositeOperation='source-over';return}
+  const o=FG.createImageData(f,f);
+  for(let y=0;y<f;y++)for(let x=0;x<f;x++){const i=(y*f+x)*4;if(!d[i+3]||((x*73+y*151)%97)/97<q)continue;const ny=y-Math.round(q*q*f*.3*((x*31)%7)/7);if(ny<0)continue;
+    const j=(ny*f+x)*4;o.data.set(d.subarray(i,i+4),j);o.data[j+3]*=1-q*.6}
+  FG.putImageData(o,0,0)}
 const paintCr=cv=>renderCr(cv,performance.now());
 const attackFx=cv=>{if(!cv)return;if(strip(cv.dataset.cr,'attack'))cv._play={kind:'attack',t0:performance.now()};else cv._atk=performance.now()};
 const hurtFx=cv=>{if(cv)cv._hurt=performance.now()};

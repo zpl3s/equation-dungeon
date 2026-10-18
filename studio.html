@@ -92,7 +92,9 @@ async function pickDir(){try{const h=await showDirectoryPicker({id:'sprites',mod
 async function scan(){if(!await perm(false))return;for await(const[name,h]of dir.entries()){const m=name.match(/^(.+?)(?:_(idle|attack))?\.png$/);
   if(m&&ART[m[1]]){try{setPic(key(m[1],m[2]||'sprite'),await createImageBitmap(await h.getFile()))}catch(e){}}}}
 function probe(){Object.keys(ART).forEach(id=>kinds(id).forEach(k=>{const n=key(id,k);if(pic[n])return;const im=new Image();
-  im.onload=()=>{if(!pic[n]){setPic(n,im);renderCard(id);renderBar()}};im.src=`assets/sprites/${n}.png?${Date.now()}`}))}
+  im.onload=()=>{if(!pic[n]){setPic(n,im);renderCard(id);renderBar()}};im.src=`assets/sprites/${n}.png`+(location.protocol==='file:'?'':`?${Date.now()}`)}))}
+// новые файлы в папке подхватываем, когда возвращаешься на вкладку
+window.addEventListener('focus',async()=>{if(dir)await scan();probe();renderBar()});
 async function store(name,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
   if(dir&&await perm(true)){const fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(blob);await ws.close();return`Сохранено: assets/sprites/${name}`}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return`Скачано как ${name} — перенеси в assets/sprites`}

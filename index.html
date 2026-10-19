@@ -7,19 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:wght@400;700&family=Press+Start+2P&family=Ruslan+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<!-- GitHub Pages разрешает кэшировать файлы на 10 минут, а обычная перезагрузка в Chrome не перекачивает скрипты.
+     Метка времени в адресе: после деплоя хватает обычной перезагрузки, и старые файлы не смешиваются с новыми. -->
+<script>const EQ_V='?v='+Date.now();document.write('<link rel="stylesheet" href="css/style.css'+EQ_V+'">')</script>
 </head>
 <body>
 <div id="app"></div>
 <div id="toast"></div>
-<script src="assets/env/atlas.js"></script>
-<script src="js/math.js"></script>
-<script src="js/world.js"></script>
-<script src="js/sprites.js"></script>
-<script src="js/biomes.js"></script>
-<script src="js/map.js"></script>
-<script src="js/faces.js"></script>
-<script src="js/prikazy.js"></script>
-<script src="js/game.js"></script>
+<script>['assets/env/atlas.js','js/math.js','js/world.js','js/sprites.js','js/biomes.js','js/map.js','js/faces.js','js/prikazy.js','js/game.js'].forEach(f=>document.write('<script src="'+f+EQ_V+'"><\/script>'))</script>
 </body>
 </html>

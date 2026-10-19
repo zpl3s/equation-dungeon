@@ -3,10 +3,14 @@
 // Картинки 64×64: assets/sprites/<id>_<state>.png, моргание и взгляд — <id>_blink / _look_left / _look_right
 // (для другого состояния — <id>_<state>_blink). Чего нет в FACE_HAS — берём основу <id>.png, а пока нет и её — временную.
 // Разметку даёт faceBox(id); холсты и облачка обновляет тик раз в 100 мс и сразу после перерисовки экрана.
-const FACE_HAS=new Set([]);                           // какие картинки состояний уже лежат в assets/sprites
+const FACE_HAS=new Set([                              // какие картинки состояний лежат в assets/sprites
+  ...['hp2','hp3','hp4','hp5','hungry','tired','scared','blink','look_left','look_right'].map(s=>'strelets_face_'+s),
+  ...['hp2','hp3'].flatMap(s=>['blink','look_left','look_right'].map(e=>`strelets_face_${s}_${e}`)),
+  ...['angry','pleased','blink'].map(s=>'tsar_'+s)]);
 const FACE_BASE={strelets_face:'hp1',tsar:'neutral'}; // состояние, которое рисует основа
 const FIMG={};
 function fimg(n){if(!(n in FIMG)){FIMG[n]=null;const im=new Image();im.onload=()=>{FIMG[n]=im;faceSync()};im.onerror=()=>{FIMG[n]=false};im.src=`assets/sprites/${n}.png`}return FIMG[n]}
+Object.keys(FACE_BASE).forEach(png);FACE_HAS.forEach(fimg); // грузим заранее, чтобы первое моргание не пропало
 
 // ---------- реплики: строки разделены « / » ----------
 const SAY={

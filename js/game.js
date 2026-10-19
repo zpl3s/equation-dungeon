@@ -200,11 +200,11 @@ function ics(){const v=($('#remind')&&$('#remind').value)||S.remind||'19:00';S.r
 
 // ---------- уроки Кота Учёного ----------
 const PH={num:'x = ?',set:'x₁, x₂',pair:'x, y',ineq:'x > ?'};
-const solHTML=e=>`<div class="sol"><div class="small muted">Решение:</div><ol>${e.s.map(x=>`<li>${x}</li>`).join('')}</ol><div class="small">Ответ: ${fa(e)}</div></div>`;
+const solHTML=e=>`<div class="sol"><div class="small muted">Решение:</div><ol>${e.s.map(stepLi).join('')}</ol><div class="small">Ответ: ${fa(e)}</div></div>`;
 function startTut(q,after,lib){tut={q,i:0,stage:'rules',step:0,done:0,cur:null,after,lib};show(tutView)}
 function tutView(){const t=tut.q[tut.i],L=TUT[t],tp=T[TI[t]];let b;
   if(tut.stage==='rules')b=`<h2>${tp.name}</h2><ul>${L.rules.map(r=>`<li>${r}</li>`).join('')}</ul><div class="row"><button class="main" data-act="tnext">Покажи пример</button></div>`;
-  else if(tut.stage==='ex')b=`<p class="muted small">Пример</p><div class="eq">${eqHTML(L.ex.q)}</div><ol class="steps">${L.ex.s.slice(0,tut.step).map(s=>`<li>${s}</li>`).join('')}</ol>
+  else if(tut.stage==='ex')b=`<p class="muted small">Пример</p><div class="eq">${eqHTML(L.ex.q)}</div><ol class="steps">${L.ex.s.slice(0,tut.step).map(stepLi).join('')}</ol>
     <div class="row">${tut.step<L.ex.s.length?'<button class="main" data-act="tstep">Следующий шаг</button>':'<button class="main" data-act="tnext">Теперь сам</button>'}</div>`;
   else{const e=tut.cur;b=`<p class="muted small">Тренировка ${tut.done+1} из 3 · без урона</p><div class="eq">${eqHTML(e.q)}</div>
     <div class="row" style="flex-wrap:nowrap"><input id="ans" autocomplete="off" spellcheck="false" placeholder="${PH[e.fmt]}"><button class="main" data-act="tcheck">Проверить</button></div>

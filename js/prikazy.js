@@ -426,7 +426,7 @@ let tz=null;   // {k: 'day' | 'small', res: итог}
 const tzObj=k=>k==='day'?S.pz.task:S.pz.small;
 const tsarFace=()=>'<canvas class="face" data-face="tsar" width="64" height="64"></canvas>';
 const PZ_FH='Ответ — число: 1200, 7,5 или 25%. Единицы писать не обязательно.';
-const pzSolHTML=e=>`<div class="sol"><div class="small muted">Решение:</div><ol>${e.s.map(x=>`<li>${x}</li>`).join('')}</ol><div class="small">Ответ: ${pzFa(e)}</div></div>`;
+const pzSolHTML=e=>`<div class="sol"><div class="small muted">Решение:</div><ol>${e.s.map(stepLi).join('')}</ol><div class="small">Ответ: ${pzFa(e)}</div></div>`;
 const pzFormulas=s=>`<details class="pzf"><summary class="small">Формулы: ${s.name}</summary><ul class="small">${s.rules.map(r=>`<li>${r}</li>`).join('')}</ul></details>`;
 const pzMsg=(t,c)=>{const m=$('#pzmsg');if(m)m.innerHTML=`<span class="${c}">${t}</span>`};
 function tzTake(k){const o=tzObj(k);if(!o||!['new','offered','later','taken'].includes(o.st))return;if(!o.p)o.p=pzGen(o.sec,o.step);o.st='taken';save();tz={k,res:null};
@@ -497,7 +497,7 @@ function dkView(){const s=PZ_BY[dk.sec];let b;
   if(dk.stage==='rules')b=`<h2>${s.name}</h2><p>${rhyme(s.dyak)}</p><p class="small">${pzCap(s.topic)}: ${s.what}.</p><ul>${s.rules.map(r=>`<li>${r}</li>`).join('')}</ul>
     <p class="small muted">В приказе три ступени: прямой расчёт по формуле, обратная задача (неизвестное внутри формулы — решаем уравнением) и многошаговая. Следующая ступень открывается, когда на этой 8 верных и 70% из последних 10.</p>
     <div class="row"><button class="main" data-act="dknext">Покажи пример</button></div>`;
-  else if(dk.stage==='ex')b=`<p class="muted small">Пример</p><p class="pzq">${s.ex.q}</p><ol class="steps">${s.ex.s.slice(0,dk.step).map(x=>`<li>${x}</li>`).join('')}</ol>
+  else if(dk.stage==='ex')b=`<p class="muted small">Пример</p><p class="pzq">${s.ex.q}</p><ol class="steps">${s.ex.s.slice(0,dk.step).map(stepLi).join('')}</ol>
     <div class="row">${dk.step<s.ex.s.length?'<button class="main" data-act="dkstep">Следующий шаг</button>':'<button class="main" data-act="dknext">Теперь сам</button>'}</div>`;
   else b=`<p class="muted small">Тренировка ${dk.done+1} из 3 · без награды</p><p class="pzq">${dk.e.q}</p>
     <div class="row" style="flex-wrap:nowrap"><input id="pzans" autocomplete="off" spellcheck="false" placeholder="ответ"><button class="main" data-act="dkcheck">Проверить</button></div>

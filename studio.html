@@ -53,6 +53,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
     <li><b>Анимации.</b> Игра сама оживляет любой спрайт: дыхание, парение, замах, вспышку от попадания, рассыпание при гибели, появление. Кнопки под превью всё это показывают. По-настоящему стоит рисовать только три анимации: «Покой», «Атака» и «Появление»; попадание и гибель остаются кодовыми. Покадровые анимации в PixelLab платные. Загружать их можно в нужную строку (PNG-лист, GIF или все кадры разом).</li>
     <li><b>Если генерирую я</b> (через PixelLab MCP), все варианты появятся прямо в карточке в блоке «Варианты от Claude», а карточка подсветится золотым. Кликни вариант, который берём за основу. Если существо смотрит не туда, нажми «⇄ Отразить»: нечисть должна смотреть влево, на стрельца.</li>
     <li><b>Кремль.</b> Во вкладке «Кремль» лежат варианты зданий, стен, башен и земли. Клик по варианту — это основа, она сохраняется в <code>assets/buildings</code> и сразу видна на карте кремля сверху. У земли отмечай несколько плиток и жми «Сохранить набор»: игра будет чередовать их.</li>
+    <li><b>Биомы.</b> Во вкладке «Биомы» — земля, переходы между землями, вода, деревья, предметы и фон боя зоны. У земли, воды, деревьев и предметов отметь несколько вариантов и жми «Сохранить набор»: игра будет чередовать их. Набор перехода и фон боя — клик по варианту. Основа сохраняется в <code>assets/biomes</code>, карта сверху сразу показывает результат.</li>
     <li>Выбрал основы — напиши мне «выбрал»: я закоммичу их, и они появятся в игре на сайте.</li>
   </ol></div>
 
@@ -65,6 +66,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
 <script src="assets/env/atlas.js"></script>
 <script src="js/world.js"></script>
 <script src="js/sprites.js"></script>
+<script src="js/biomes.js"></script>
 <script src="js/map.js"></script>
 <script src="js/art.js"></script>
 <script>
@@ -100,20 +102,22 @@ async function scan(){granted=await perm(false);if(!granted)return;for await(con
   if(m&&ART[m[1]]){try{setPic(key(m[1],m[2]||'sprite'),await createImageBitmap(await h.getFile()))}catch(e){}}}
   // варианты, которые сгенерировал Claude: assets/candidates/<id>/*.png
   if(root){try{const cd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('candidates');
-    for await(const[id,h]of cd.entries()){if(h.kind!=='directory'||!ART[id]&&!KREM[id])continue;const list=[];
+    for await(const[id,h]of cd.entries()){if(h.kind!=='directory'||!ART[id]&&!KREM[id]&&!BIOME[id])continue;const list=[];
       for await(const[n,f]of h.entries())if(/\.png$/i.test(n))list.push([n,await createImageBitmap(await f.getFile())]);
       cand[id]=list.sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(x=>x[1])}}catch(e){}
     try{const bd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('buildings');
-      for await(const[n,f]of bd.entries()){const m=n.match(/^(.+)\.png$/);if(m&&KREM[m[1]])setKrem(m[1],canvasOf(await createImageBitmap(await f.getFile())))}}catch(e){}}}
+      for await(const[n,f]of bd.entries()){const m=n.match(/^(.+)\.png$/);if(m&&KREM[m[1]])setKrem(m[1],canvasOf(await createImageBitmap(await f.getFile())))}}catch(e){}
+    try{const bd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('biomes');
+      for await(const[n,f]of bd.entries()){const m=n.match(/^(.+)\.png$/);if(m&&BIOME[m[1]])setBio(m[1],canvasOf(await createImageBitmap(await f.getFile())))}}catch(e){}}}
 // варианты с сайта по списку assets/candidates/index.json (tools/candidates_manifest.py); из подключённой папки свежее — их не трогаем
 async function webCands(){let m;try{m=await(await fetch('assets/candidates/index.json?'+Date.now())).json()}catch(e){return}let n=0;
-  await Promise.all(Object.entries(m).filter(([id])=>(ART[id]||KREM[id])&&!cand[id]).map(async([id,files])=>{
+  await Promise.all(Object.entries(m).filter(([id])=>(ART[id]||KREM[id]||BIOME[id])&&!cand[id]).map(async([id,files])=>{
     try{cand[id]=await Promise.all(files.map(async f=>createImageBitmap(await(await fetch(`assets/candidates/${id}/${f}`)).blob())));n++}catch(e){}}));
   if(n)renderAll()}
 function probe(){Object.keys(ART).forEach(id=>kinds(id).forEach(k=>{const n=key(id,k);if(pic[n])return;const im=new Image();
   im.onload=()=>{if(!pic[n]){setPic(n,im);renderCard(id);renderBar()}};im.src=`assets/sprites/${n}.png`+(location.protocol==='file:'?'':`?${Date.now()}`)}))}
 // новые файлы в папке подхватываем, когда возвращаешься на вкладку
-window.addEventListener('focus',async()=>{if(dir)await scan();probe();renderBar();if(tab==='krem')kRefresh();webCands()});
+window.addEventListener('focus',async()=>{if(dir)await scan();probe();renderBar();if(tab==='krem')kRefresh();if(tab==='bio')bRefresh();webCands()});
 async function store(name,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
   if(dir&&await perm(true)){const fh=await dir.getFileHandle(name,{create:true}),ws=await fh.createWritable();await ws.write(blob);await ws.close();return`Сохранено: assets/sprites/${name}`}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return`Скачано как ${name} — перенеси в assets/sprites`}
@@ -199,23 +203,25 @@ function cardHTML(id){const a=ART[id],c=CR[id];
   ${kinds(id).map(k=>slotHTML(id,k)).join('')}
   <div class="small" id="st_${id}"></div></div></div>`}
 function renderCard(id){const el=$('#c_'+id);if(!el)return;const st=$('#st_'+id).innerHTML;el.outerHTML=cardHTML(id);$('#st_'+id).innerHTML=st;paintPreview(id);paintCands(id)}
-function renderBar(){renderPending();const tabs=`<button data-tab="krem" class="${tab==='krem'?'on':''}">Кремль</button><button data-tab="cr" class="${tab==='cr'?'on':''}">Нечисть</button>`;
+function renderBar(){renderPending();const tabs=`<button data-tab="krem" class="${tab==='krem'?'on':''}">Кремль</button><button data-tab="bio" class="${tab==='bio'?'on':''}">Биомы</button><button data-tab="cr" class="${tab==='cr'?'on':''}">Нечисть</button>`;
+  if(tab==='bio'){const k=BIO_IDS.filter(id=>BIM[id]).length;
+    $('#bar').innerHTML=`${tabs}<span class="px small">Основ выбрано ${k} из ${BIO_IDS.length}</span><div class="bar m" style="flex:1"><i style="width:${k/BIO_IDS.length*100}%"></i></div>`;return}
   if(tab==='krem'){const ids=KREM_IDS(),k=ids.filter(id=>KIM[id]).length;
     $('#bar').innerHTML=`${tabs}<span class="px small">Основ выбрано ${k} из ${ids.length}</span><div class="bar m" style="flex:1"><i style="width:${k/ids.length*100}%"></i></div>`;return}
   const ids=Object.keys(ART),n=ids.length,k=ids.filter(id=>pic[id]).length,an=ids.reduce((s,id)=>s+kinds(id).length-1,0),ak=ids.reduce((s,id)=>s+kinds(id).filter(x=>x!=='sprite'&&pic[key(id,x)]).length,0);
   $('#bar').innerHTML=`${tabs}<span class="px small">Спрайтов ${k} из ${n} · анимаций ${ak} из ${an}</span><div class="bar m" style="flex:1"><i style="width:${(k+ak)/(n+an)*100}%"></i></div>
   <button data-f="all" class="${filter==='all'?'on':''}">Все</button><button data-f="missing" class="${filter==='missing'?'on':''}">Не готовы</button>`}
 // ждут выбора: варианты есть, основы нет. Клик по имени — к карточке
-const wait=id=>!!(cand[id]&&cand[id].length)&&!(KREM[id]?KIM[id]:pic[id]);
-const nameOf=id=>KREM[id]?kName(id):CR[id].n;
-function renderPending(){const el=$('#pending'),k=KREM_IDS().filter(wait),c=Object.keys(ART).filter(wait),all=[...k,...c];el.hidden=!all.length;if(!all.length)return;
-  el.innerHTML=`<div class="px small gold">Ждут выбора: ${all.length}</div>${[['Кремль',k],['Нечисть',c]].filter(x=>x[1].length).map(([t,ids])=>`<div style="margin-top:8px"><span class="small muted">${t}:</span> ${ids.map(id=>`<button data-goto="${id}">${nameOf(id)}</button>`).join('')}</div>`).join('')}`}
-function goTo(id){const t=KREM[id]?'krem':'cr';if(tab!==t){tab=t;filter='all';try{localStorage.setItem('studio.tab',tab)}catch(e){}renderAll()}const el=$('#'+(t==='krem'?'k_':'c_')+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+const wait=id=>!!(cand[id]&&cand[id].length)&&!(KREM[id]?KIM[id]:BIOME[id]?BIM[id]:pic[id]);
+const nameOf=id=>KREM[id]?kName(id):BIOME[id]?BIOME[id].n:CR[id].n;
+function renderPending(){const el=$('#pending'),k=KREM_IDS().filter(wait),b=BIO_IDS.filter(wait),c=Object.keys(ART).filter(wait),all=[...k,...b,...c];el.hidden=!all.length;if(!all.length)return;
+  el.innerHTML=`<div class="px small gold">Ждут выбора: ${all.length}</div>${[['Кремль',k],['Биомы',b],['Нечисть',c]].filter(x=>x[1].length).map(([t,ids])=>`<div style="margin-top:8px"><span class="small muted">${t}:</span> ${ids.map(id=>`<button data-goto="${id}">${nameOf(id)}</button>`).join('')}</div>`).join('')}`}
+function goTo(id){const t=KREM[id]?'krem':BIOME[id]?'bio':'cr';if(tab!==t){tab=t;filter='all';try{localStorage.setItem('studio.tab',tab)}catch(e){}renderAll()}const el=$('#'+({krem:'k_',bio:'bc_',cr:'c_'})[t]+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
 function renderFolder(){$('#folder').innerHTML=!fsOK?`<p class="gold">Этот браузер не умеет сохранять прямо в папку (это умеет Chrome). Файлы будут скачиваться с правильными именами — перенеси их в <code>equation-dungeon/assets/sprites</code>.</p>`:
   dir&&!granted?`<div class="row"><span>Папка <b class="gold">${(root||dir).name}</b> подключена, но браузер просит подтвердить доступ.</span><button class="main" data-grant>Дать доступ</button></div>`:
   dir?`<div class="row"><span>Подключена папка <b class="gold">${(root||dir).name}</b>${root?'':' — варианты от Claude не видны, лучше выбрать всю папку equation-dungeon'}</span><button data-pick>Выбрать другую</button></div>`:
   `<div class="row"><span>Варианты видны и так. Один раз выбери папку игры <code>equation-dungeon</code>, чтобы выбранное сразу сохранялось в проект. Без папки картинка скачается файлом.</span><button class="main" data-pick>Выбрать папку</button></div>`}
-function renderAll(){renderFolder();renderBar();if(tab==='krem')return renderKrem();const ready=id=>kinds(id).every(k=>pic[key(id,k)]);
+function renderAll(){renderFolder();renderBar();if(tab==='krem')return renderKrem();if(tab==='bio')return renderBio();const ready=id=>kinds(id).every(k=>pic[key(id,k)]);
   $('#list').innerHTML=GROUPS.map(g=>{const ids=g.ids.filter(id=>filter==='all'||!ready(id));return ids.length?`<div class="panel"><h2>${g.name}</h2>${ids.map(cardHTML).join('')}</div>`:''}).join('')||'<div class="panel"><p class="ok">Вся нечисть готова!</p></div>';
   Object.keys(ART).forEach(id=>{paintPreview(id);paintCands(id)})}
 
@@ -224,7 +230,7 @@ let tab='krem';try{tab=localStorage.getItem('studio.tab')||'krem'}catch(e){}
 const KGROUPS=[{name:'Здания',ids:BLD.map(b=>b.id)},{name:'Стены и башни',ids:FORT},{name:'Земля',ids:Object.keys(GROUND).map(k=>'g_'+k)}];
 const kName=id=>(BLD.find(b=>b.id===id)||{}).name||KREM[id].n;
 const ksel={}; // отмеченные плитки земли: id → номера вариантов
-onKremLoad=()=>{if(tab==='krem')kRefresh()};
+onKremLoad=()=>{if(tab==='krem')kRefresh();if(tab==='bio')bRefresh()}; // зовут и здания, и основы биомов
 async function kStore(id,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png')),name=id+'.png';
   if(root&&await perm(true)){const d=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('buildings',{create:true}),fh=await d.getFileHandle(name,{create:true}),ws=await fh.createWritable();
     await ws.write(blob);await ws.close();return`Сохранено: assets/buildings/${name}`}
@@ -260,9 +266,60 @@ function renderKrem(){$('#list').innerHTML=`<div class="panel"><h2>Кремль 
   KGROUPS.map(g=>`<div class="panel"><h2>${g.name}</h2>${g.ids.map(kCardHTML).join('')}</div>`).join('');
   KREM_IDS().forEach(id=>{kPaint(id);kCands(id)});kMap()}
 
+// ---------- раздел «Биомы»: земля, переходы, вода, деревья, предметы и фон боя зоны (js/biomes.js); основа → assets/biomes/<id>.png ----------
+const BGROUPS=[{name:'Земля и вода',k:'tiles'},{name:'Переходы между землями',k:'set'},{name:'Деревья, кусты и предметы',k:'obj'},{name:'Фон боя',k:'arena'}].map(g=>({name:g.name,ids:BIO_IDS.filter(id=>BIOME[id].kind===g.k)}));
+const bsel={}; // отмеченные варианты для набора: id → номера
+async function bStore(id,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png')),name=id+'.png';
+  if(root&&await perm(true)){const d=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('biomes',{create:true}),fh=await d.getFileHandle(name,{create:true}),ws=await fh.createWritable();
+    await ws.write(blob);await ws.close();return`Сохранено: assets/biomes/${name}`}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return`Скачано как ${name} — перенеси в assets/biomes`}
+async function bPick(id,src){const c=canvasOf(src);setBio(id,c);let t;try{t=`<span class="ok">${await bStore(id,c)}</span>`}catch(e){t=`<span class="bad">Не сохранилось: ${e.message}</span>`}
+  const el=$('#bc_'+id);if(el)el.outerHTML=bCardHTML(id);bCands(id);bRefresh();$('#bst_'+id).innerHTML=t}
+// набор из отмеченных вариантов: плитки 40×20 или предметы size×size в ряд
+function bSaveSet(id){const list=(bsel[id]||[]).map(i=>cand[id][i]);if(!list.length)return $('#bst_'+id).innerHTML='<span class="bad">Сначала отметь варианты</span>';
+  const w=list[0].width,h=list[0].height,c=document.createElement('canvas');c.width=w*list.length;c.height=h;const g=c.getContext('2d');list.forEach((b,i)=>g.drawImage(b,i*w,0));bPick(id,c)}
+const multi=id=>BIOME[id].kind==='tiles'||BIOME[id].kind==='obj';
+function bCardHTML(id){const B=BIOME[id],has=!!BIM[id],n=cand[id]&&cand[id].length,m=multi(id),ar=B.kind==='arena';
+  const size={tiles:'плитки 40×20',set:'16 плиток 40×20 — переходы',obj:`холст ${B.size}×${B.size}`,arena:`картинка ${B.w}×${B.h}`}[B.kind];
+  return`<div class="card ${has?'done':n?'wait':''}" id="bc_${id}"><div class="pv"><canvas id="bpv_${id}" width="${ar?340:256}" height="${ar?112:192}" style="width:${ar?340:256}px;height:${ar?112:192}px;max-width:100%"></canvas>
+    <div class="row" style="margin-top:6px;gap:6px"><span class="small ${has?'ok':'muted'}">${has?'✓ основа выбрана':'основа не выбрана — в игре старый арт'}</span></div></div>
+  <div class="info"><div class="row"><span class="px small">${B.n}</span>${!has&&n?'<span class="wait-mark">ждёт выбора</span>':''}<span class="small muted">файл biomes/${id}.png · ${size}</span></div>
+  ${B.note?`<div class="small gold">${B.note}</div>`:''}
+  ${n?`<div class="slot"><div class="px small gold">${m?'Варианты от Claude — отметь несколько для набора':B.kind==='set'?'Набор от Claude — кликни, чтобы взять':'Варианты от Claude — кликни, какой берём за основу'}</div><div class="cands" id="bcd_${id}"></div>
+    ${m?`<div class="row"><button class="main" data-bset="${id}">Сохранить набор</button><span class="small muted" id="bn_${id}">отмечено ${(bsel[id]||[]).length}</span></div>`:''}</div>`:'<div class="small muted">Вариантов пока нет.</div>'}
+  <div class="slot"><div class="row"><span class="px small">Промпт</span><span class="small muted">${B.tool}</span><span style="flex:1"></span><button data-bcopy="${id}">Копировать</button></div><textarea readonly rows="3">${B.p}</textarea></div>
+  <div class="small" id="bst_${id}"></div></div></div>`}
+// превью основы так, как её рисует карта: земля и вода — заплаткой, переход — пятно Поля на соседней земле, предметы — на земле Поля, фон боя — целиком
+function bPaint(id){const c=$('#bpv_'+id);if(!c)return;const g=c.getContext('2d'),B=BIOME[id],k=BIM[id];g.imageSmoothingEnabled=false;g.fillStyle='#120d09';g.fillRect(0,0,c.width,c.height);if(!k||!ATL.complete)return;
+  if(B.kind==='arena'){const a=document.createElement('canvas');a.style.cssText='width:340px;height:112px';document.body.appendChild(a);paintArena(a,0);a.remove();return g.drawImage(a,0,0,c.width,c.height)}
+  const cx=c.width/2,y0=c.height/2-7*MAP.TH/2,R=2.5,at=(a,b)=>[cx+(a-b)*MAP.TW/2,y0+(a+b)*MAP.TH/2];
+  // вершины 8×8 вокруг центра: внутри круга — первая земля набора, снаружи — вторая
+  const A=B.kind==='set'?B.a:id===BIO_WATER?'water':'field',Bt=B.kind==='set'?B.b:'field',blob=B.kind==='set'||id===BIO_WATER,vt=(a,b)=>blob&&Math.hypot(a-3.5,b-3.5)+((hash(a,b)%7)-3)*.12<R-(id===BIO_WATER?.4:0)?A:Bt;
+  const raw=B.kind==='set'&&!bimg(BIOMES[B.a].ground); // земля Поля ещё не выбрана — показываем плитки набора как есть, по маске углов
+  for(let a=0;a<7;a++)for(let b=0;b<7;b++){const[x,y]=at(a,b),t=[vt(a,b),vt(a+1,b),vt(a,b+1),vt(a+1,b+1)],n={};t.forEach(v=>n[v]=(n[v]||0)+1);
+    if(raw){g.drawImage(k.im,t.reduce((m,v,q)=>v===A?m|8>>q:m,0)*MAP.TW,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);continue}
+    ground(g,{g:Object.keys(n).sort((p,q)=>n[q]-n[p])[0],v:(hash(a,b)%97)/97},x,y,t)}
+  if(B.kind==='obj'){const r=rnd(7);for(let q=0;q<7;q++){const f=k.fr[q%k.fr.length],[x,y]=at(1+r()*5,1+r()*5);drawF(g,k.im,f,x,y+MAP.TH/2,r()<.5)}}}
+function bCands(id){const box=$('#bcd_'+id);if(!box)return;box.innerHTML='';const B=BIOME[id],m=multi(id);
+  cand[id].forEach((b,i)=>{const set=B.kind==='set',sc=B.kind==='tiles'?3:set?2:B.kind==='arena'?2:B.size>32?2:3,c=document.createElement('canvas'),g=c.getContext('2d');
+    c.width=set?8*MAP.TW*sc:b.width*sc;c.height=set?2*MAP.TH*sc+sc*4:b.height*sc;c.className='cand'+(m&&(bsel[id]||[]).includes(i)?' on':'');
+    g.imageSmoothingEnabled=false;g.fillStyle='#120d09';g.fillRect(0,0,c.width,c.height);
+    if(set)for(let q=0;q<16;q++)g.drawImage(b,q*MAP.TW,0,MAP.TW,MAP.TH,(q%8)*MAP.TW*sc,Math.floor(q/8)*(MAP.TH+4)*sc,MAP.TW*sc,MAP.TH*sc);else g.drawImage(b,0,0,c.width,c.height);
+    c.onclick=()=>{if(!m)return bPick(id,b);const s=bsel[id]||(bsel[id]=[]),k=s.indexOf(i);if(k<0)s.push(i);else s.splice(k,1);c.classList.toggle('on',k<0);$('#bn_'+id).textContent='отмечено '+s.length};
+    box.appendChild(c)})}
+// карта целиком и бой на Поле, как в игре (все зоны открыты)
+function bMap(){const c=$('#bmap');if(!c||!ATL.complete)return;MB=null;buildMap(()=>true);c.getContext('2d').drawImage(MB.base,0,0);const a=$('#barena');if(a)paintArena(a,0)}
+function bRefresh(){bMap();renderBar();BIO_IDS.forEach(id=>{const el=$('#bc_'+id);if(el&&el.classList.contains('done')!==!!BIM[id]){el.outerHTML=bCardHTML(id);bCands(id)}bPaint(id)})}
+function renderBio(){BIO_IDS.forEach(bimg);
+  $('#list').innerHTML=`<div class="panel"><h2>Поле с полуденницами на карте</h2><p class="small muted">Поле — внизу карты, между Опушкой (слева) и Кощеевым царством (справа). Где основа ещё не выбрана, стоит старый арт; переходы появятся, когда выбраны земля Поля и набор перехода.</p>
+    <canvas id="bmap" width="${MAP.W}" height="${MAP.H}" style="width:100%;height:auto"></canvas><div class="small muted" style="margin:8px 0 4px">Бой на Поле:</div><canvas id="barena" style="width:100%;height:220px;display:block"></canvas></div>`+
+  BGROUPS.map(g=>`<div class="panel"><h2>${g.name}</h2>${g.ids.map(bCardHTML).join('')}</div>`).join('');
+  BIO_IDS.forEach(id=>{bPaint(id);bCands(id)});bMap()}
+
 document.addEventListener('click',e=>{const t=e.target,d=t.dataset;
   if(d.goto)goTo(d.goto);else if(d.tab){tab=d.tab;try{localStorage.setItem('studio.tab',tab)}catch(e){}renderAll()}
   else if(d.kcopy)copy(kremText(d.kcopy));else if(d.kflip)kFlip(d.kflip);else if(d.kset)kSaveSet(d.kset);
+  else if(d.bcopy)copy(BIOME[d.bcopy].p);else if(d.bset)bSaveSet(d.bset);
   else if(d.copy)copy(textFor(d.copy,d.k));else if(t.hasAttribute('data-neg'))copy(ART_NEG);else if(t.hasAttribute('data-pick'))pickDir();
   else if(d.flip)flip(d.flip);else if(t.hasAttribute('data-grant'))perm(true).then(async()=>{await scan();renderAll()});
   else if(d.fx){const c=spr(d.id);if(!c)return;if(d.fx==='atk')attackFx(c);else if(d.fx==='hurt')hurtFx(c);else if(d.fx==='spawn')spawnFx(c);else{c._die=performance.now();setTimeout(()=>{c._die=0},1500)}}else if(d.f){filter=d.f;renderAll()}});
@@ -270,7 +327,7 @@ document.addEventListener('change',e=>{const d=e.target.dataset;if(d.up)onFiles(
 document.addEventListener('dragover',e=>{const s=e.target.closest('.slot');if(s){e.preventDefault();s.classList.add('drag')}});
 document.addEventListener('dragleave',e=>{const s=e.target.closest('.slot');if(s)s.classList.remove('drag')});
 document.addEventListener('drop',e=>{const s=e.target.closest('.slot');if(!s)return;e.preventDefault();s.classList.remove('drag');onFiles(s.dataset.id,s.dataset.k,e.dataTransfer.files)});
-ATL.addEventListener('load',()=>{Object.keys(ART).forEach(id=>paintPreview(id));if(tab==='krem')kMap()});
+ATL.addEventListener('load',()=>{Object.keys(ART).forEach(id=>paintPreview(id));if(tab==='krem')kMap();if(tab==='bio')bRefresh()});
 (async()=>{if(fsOK){try{dir=await kv('dir')||null;root=await kv('root')||null;if(dir)await scan()}catch(e){dir=null}}renderAll();probe();webCands()})();
 </script>
 </body>

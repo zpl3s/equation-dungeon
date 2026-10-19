@@ -41,23 +41,29 @@ function cellInfo(i,j){
   const zi=Math.floor(((a-Math.PI/2+Math.PI/8)%(2*Math.PI)+4*Math.PI)%(2*Math.PI)/(Math.PI/4));
   const perp=k=>{const t=RAY(k);return{along:sx*Math.cos(t)+sy*Math.sin(t),d:Math.abs(sx*Math.sin(t)-sy*Math.cos(t))/MAP.TW}};
   if(r<R+7){for(let k=0;k<8;k++){const p=perp(k);if(p.along>0&&p.d<.45)return{z:zi,g:'road'}}} // тропы от посада в зоны
-  const Z=ZONES[zi];let g=Z.ground;
+  const Z=ZONES[zi],B=BIOMES[Z.ground];let g=Z.ground;
   if(Z.water&&perp(zi).d<1.1+h*.4)g='water';
+  if(B&&B.ponds&&bimg(BIO_WATER)&&B.ponds.some(([px,py,s])=>Math.hypot(dx-px,dy-py)<s+(h-.5)*.6))g='water'; // пруды биома, когда выбран арт воды
   return{z:zi,g};
 }
 
 let MB=null; // {cells, base canvas, rects}
 function buildMap(open){
   const cells=[],objs=[],rects=[];
-  for(let i=0;i<MAP.N;i++)for(let j=0;j<MAP.N;j++){
-    const c=cellInfo(i,j),r=rnd(hash(i,j)*7+3);c.i=i;c.j=j;c.v=r();cells.push(c);
-    if(c.g==='road'||c.g==='water'||c.z===-1)continue;
-    const [x,y]=gp(i+.5,j+.5);if(!onScreen(x,y))continue;const ox=()=>(r()-.5)*16,oy=()=>(r()-.5)*7;
-    const trees=grove(c.i,c.j)||(c.z===-2?{bush:.05}:ZONES[c.z].trees);
-    for(const k in trees)if(r()<trees[k]){const vv=variants(k),n=vv[Math.floor(r()*vv.length)],px=x+ox(),py=y+oy();objs.push({y:py,f:g=>drawA(g,n,px,py)})}
+  for(let i=0;i<MAP.N;i++)for(let j=0;j<MAP.N;j++){const c=cellInfo(i,j),r=rnd(hash(i,j)*7+3);c.i=i;c.j=j;c.v=r();c.r=r;cells.push(c)}
+  const V=vertices(cells),N1=MAP.N+1,corn=c=>{const o=c.i*N1+c.j;return[V[o],V[o+N1],V[o+1],V[o+N1+1]]};
+  cells.forEach(c=>{const r=c.r;
+    if(c.g==='road'||c.g==='water'||c.z===-1)return;
+    const [x,y]=gp(c.i+.5,c.j+.5);if(!onScreen(x,y))return;const ox=()=>(r()-.5)*16,oy=()=>(r()-.5)*7;
+    const gr=grove(c.i,c.j),bo=!gr&&c.z>=0&&bioObjs(BIOMES[ZONES[c.z].ground]); // деревья и предметы биома, пока их нет — атлас
+    if(bo){const o=bioPick(c.i,c.j,bo); // не больше одного на клетку, на своей земле, не у воды и не прямо за высоким деревом
+      if(o&&!corn(c).includes('water')&&corn(c).filter(v=>v===c.g).length>1&&!(o.f.h<=40&&[[1,0],[0,1],[1,1]].some(([a,b])=>{const q=bioPick(c.i+a,c.j+b,bo);return q&&q.f.h>40})))
+        objs.push({y:y+o.oy,f:g=>drawF(g,o.k.im,o.f,x+o.ox,y+o.oy,o.fl)})}
+    else{const trees=gr||(c.z===-2?{bush:.05}:ZONES[c.z].trees);
+      for(const k in trees)if(r()<trees[k]){const vv=variants(k),n=vv[Math.floor(r()*vv.length)],px=x+ox(),py=y+oy();objs.push({y:py,f:g=>drawA(g,n,px,py)})}}
     if(c.z>=0&&ZONES[c.z].mounds&&r()<.08){const px=x+ox(),py=y+oy();objs.push({y:py,f:g=>mound(g,px,py)})}
     if(c.z>=0&&ZONES[c.z].rocks&&r()<.14){const px=x+ox(),py=y+oy(),s=.7+r()*.6;objs.push({y:py,f:g=>rock(g,px,py,s)})}
-  }
+  });
   // стены: башни по углам, ворота посередине каждой стороны, между ними малые башни, а между башнями прясла стены
   const R=MAP.R,k0=MAP.C-R,k1=MAP.C+R,K=[[k0,k0],[k1,k0],[k1,k1],[k0,k1]],at=(a,b,t)=>gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);
   for(let e=0;e<4;e++){const a=K[e],b=K[(e+1)%4],slash=e%2===1,front=e===1||e===2; // стороны 1 и 3 идут «/», 0 и 2 — «\»; 1 и 2 — передние, к нам наружной стороной
@@ -70,17 +76,43 @@ function buildMap(open){
     else{kapishche(g,px,py);rects.push({id:b.id,x:px-22,y:py-34,w:44,h:42})}}})});
   const cv=document.createElement('canvas');cv.width=MAP.W;cv.height=MAP.H;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;
   g.fillStyle='#07060a';g.fillRect(0,0,MAP.W,MAP.H);
-  cells.forEach(c=>{const[x,y]=gp(c.i,c.j);if(onScreen(x,y))ground(g,c,x,y)});
+  cells.forEach(c=>{const[x,y]=gp(c.i,c.j);if(onScreen(x,y))ground(g,c,x,y,corn(c))});
   objs.sort((a,b)=>a.y-b.y).forEach(o=>o.f(g));
   cells.forEach(c=>{if(c.z>=0&&!open(c.z))diamond(g,c.i,c.j,'rgba(6,4,8,.66)')});
   const vg=g.createRadialGradient(MAP.W/2,MAP.H/2,MAP.H*.42,MAP.W/2,MAP.H/2,MAP.W*.62);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(4,3,6,.85)');
   g.fillStyle=vg;g.fillRect(0,0,MAP.W,MAP.H);
   MB={cells,base:cv,rects};
 }
-// плитка земли: лента из мастерской (кремль, посад, дороги) или атлас
-function ground(g,c,x,y){const k=GROUND[c.g]&&kimg('g_'+c.g);
-  if(k)return g.drawImage(k.im,Math.floor(c.v*k.n)*MAP.TW,0,MAP.TW,k.im.height,x-MAP.TW/2,y,MAP.TW,k.im.height);
-  const v=variants(GROUND[c.g]||'t_'+c.g);drawA(g,v[Math.floor(c.v*v.length)],x-MAP.TW/2,y)}
+// плитка земли целиком: биом (js/biomes.js), лента из мастерской (кремль, посад, дороги) или атлас
+function plain(g,t,v,x,y){const B=BIOMES[t],b=B&&bimg(B.ground);if(b)return g.drawImage(b.im,Math.floor(v*b.n)*MAP.TW,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);
+  const k=GROUND[t]&&kimg('g_'+t);if(k)return g.drawImage(k.im,Math.floor(v*k.n)*MAP.TW,0,MAP.TW,k.im.height,x-MAP.TW/2,y,MAP.TW,k.im.height);
+  const vv=variants(GROUND[t]||'t_'+t);drawA(g,vv[Math.floor(v*vv.length)],x-MAP.TW/2,y)}
+// у каждой вершины сетки своя земля: большинство из 12 клеток вокруг (ближние четыре вдвое весомее), ничья — по жребию;
+// так граница зон идёт плавной линией, а не лесенкой по клеткам. Рядом дорога — дорога, чтобы поле не съедало тропы
+const VNB=[[-1,-1,2],[0,-1,2],[-1,0,2],[0,0,2],[-2,-1,1],[-2,0,1],[1,-1,1],[1,0,1],[-1,-2,1],[0,-2,1],[-1,1,1],[0,1,1]];
+function vertices(cells){const N=MAP.N,V=[];
+  for(let i=0;i<=N;i++)for(let j=0;j<=N;j++){const n={};let best=null,bn=0,road=false;const r=rnd(hash(i,j)*13+5);
+    for(const[da,db,w]of VNB){const a=i+da,b=j+db;if(a<0||b<0||a>=N||b>=N)continue;const t=cells[a*N+b].g;if(w>1&&t==='road')road=true;n[t]=(n[t]||0)+w}
+    if(!road)for(const t in n)if(n[t]>bn||n[t]===bn&&r()<.5){best=t;bn=n[t]}
+    V.push(road?'road':best)}
+  return V}
+// клетка слоями по земле её углов t = [NW, NE, SW, SE] (верх, право, лево, низ ромба): сначала обычная земля (своя или соседа),
+// поверх — земля биома по маске углов из набора переходов к этой земле, поверх — вода с берегом. Без арта биома — плитка клетки целиком
+function ground(g,c,x,y,t){const bit=f=>t.reduce((m,v,k)=>f(v)?m|8>>k:m,0),W=bimg(BIO_WATER),wet=W&&t.includes('water');
+  const bio=t.find(v=>BIOMES[v]&&bimg(BIOMES[v].ground)),B=bio&&BIOMES[bio],land=v=>v!==bio&&!(W&&v==='water');
+  let base=land(c.g)?c.g:null;if(!base){const n={};t.filter(land).forEach(v=>n[v]=(n[v]||0)+1);base=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||bio||c.g}
+  plain(g,base,c.v,x,y);
+  if(B&&base!==bio){const fm=bit(v=>v===bio||wet&&v==='water'),S=bimg(B.sets[base]||'')||Object.values(B.sets).map(bimg).find(Boolean),k=bimg(B.ground),sx=Math.floor(c.v*k.n)*MAP.TW;
+    if(fm===15)plain(g,bio,c.v,x,y);else if(fm&&S)g.drawImage(bioPiece(S,B.ground+sx,fm,k.im,sx),x-MAP.TW/2,y);else if(c.g===bio)plain(g,bio,c.v,x,y)}
+  if(wet){const wm=bit(v=>v==='water'),sx=Math.floor(c.v*W.n)*MAP.TW,M=bimg(BIO_SHORE);
+    if(wm===15||!M&&c.g==='water')g.drawImage(W.im,sx,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);else if(M&&wm)g.drawImage(bioPiece(M,'w'+sx,wm,W.im,sx,'#1b1d12'),x-MAP.TW/2,y)}}
+// предмет биома на клетке по её собственному жребию (так видно, что стоит у соседей): картинка, кадр, отражение, сдвиг; null — пусто
+function bioPick(i,j,bo){const r=rnd(hash(i,j)*11+7),q=bo.find(([,p])=>r()<p);if(!q)return null;const k=q[0];return{k,f:k.fr[Math.floor(r()*k.fr.length)],fl:r()<.5,ox:(r()-.5)*16,oy:(r()-.5)*7}}
+// предметы биома, у которых выбрана основа: [картинка, вероятность на клетку]; null — ни одной
+function bioObjs(B){if(!B||!B.objs)return null;const o=Object.entries(B.objs).map(([id,p])=>[bimg(id),p]).filter(q=>q[0]);return o.length?o:null}
+// кадр предмета по якорю (низ видимой части по центру)
+function drawF(g,im,f,x,y,fl){x=Math.round(x);y=Math.round(y-f.ay+1);if(!fl)return g.drawImage(im,f.sx+f.x0,f.y0,f.w,f.h,x-f.ax,y,f.w,f.h);
+  g.save();g.translate(x,0);g.scale(-1,1);g.drawImage(im,f.sx+f.x0,f.y0,f.w,f.h,-f.ax,y,f.w,f.h);g.restore()}
 // прясло стены между башнями; короткий арт ставим несколько раз вдоль прясла. Без арта — частокол
 function wallSpan(g,a,b,q,px,py,slash,front){const k=front&&kimg('wall_out')||kimg('wall');
   if(k){const L=k.x1-k.x0+1,S=MAP.R*MAP.TW/4,n=Math.max(1,Math.ceil(S/(L*.75))),step=n>1?(S-L)/(n-1):0,s=slash?-1:1; // S — ширина прясла на экране
@@ -118,7 +150,12 @@ function mapPick(cv,ev){const rc=cv.getBoundingClientRect(),mx=(ev.clientX-rc.le
   if(i<0||j<0||i>=MAP.N||j>=MAP.N)return null;const c=MB.cells[i*MAP.N+j];return c.z>=0?{type:'zone',zi:c.z}:null}
 
 // фон боя: небо зоны, полоса изометрической земли и деревья на заднем плане
-function paintArena(cv,zi){const Z=ZONES[zi],W=440,H=118,g=cv.getContext('2d');cv.width=W;cv.height=H;g.imageSmoothingEnabled=false;
+// фон боя биома: картинка без растяжения — по высоте окна обрезаем небо сверху, по ширине — края поровну
+function paintArena(cv,zi){const Z=ZONES[zi],B=BIOMES[Z.ground],k=B&&B.arena&&bimg(B.arena);
+  if(k){const w0=k.im.width,h0=k.im.height,a=(cv.clientWidth||440)/(cv.clientHeight||118),w=Math.min(w0,Math.round(h0*a)),h=Math.min(h0,Math.round(w0/a)),g=cv.getContext('2d');
+    cv.width=w;cv.height=h;g.imageSmoothingEnabled=false;g.drawImage(k.im,(w0-w)>>1,h0-h,w,h,0,0,w,h);
+    const fog=g.createLinearGradient(0,0,0,h);fog.addColorStop(0,'rgba(0,0,0,.25)');fog.addColorStop(.6,'rgba(0,0,0,0)');fog.addColorStop(1,'rgba(0,0,0,.35)');g.fillStyle=fog;g.fillRect(0,0,w,h);return}
+  const W=440,H=118,g=cv.getContext('2d');cv.width=W;cv.height=H;g.imageSmoothingEnabled=false;
   const sk=g.createLinearGradient(0,0,0,70);sk.addColorStop(0,Z.sky[1]);sk.addColorStop(1,Z.sky[0]);g.fillStyle=sk;g.fillRect(0,0,W,H);
   const r=rnd(zi*977+13),tv=variants('t_'+Z.ground),wv=variants('t_water');
   for(let row=0;row<8;row++)for(let col=-1;col<12;col++){const n=Z.water&&row<2?wv[Math.floor(r()*wv.length)]:tv[Math.floor(r()*tv.length)];drawA(g,n,col*40+(row%2?20:0),60+row*8)}

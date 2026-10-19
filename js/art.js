@@ -6,6 +6,9 @@ const ART_NEG='blurry, text, watermark, frame, border, scenery, background, grou
 const ART={
 strelets:{size:64,dir:'east',p:'russian streltsy musketeer, long red kaftan with gold buttons, tall fur-trimmed red hat, bardiche axe on back, holding matchlock musket, black boots, young tired face'},
 kot:{size:64,dir:'south',p:'learned grey cat sitting upright, round spectacles, golden chain around neck, holding a scroll, wise smug expression'},
+// лица: портрет в шапке и на карте (js/faces.js), голова и плечи анфас; состояния — правкой основы
+strelets_face:{size:64,dir:'south',face:1,p:'head and shoulders bust of the same streltsy musketeer, front view, tall red hat with dark fur trim, red kaftan collar with gold buttons, young tired face with a sly half-smile'},
+tsar:{size:64,dir:'south',face:1,p:'head and shoulders bust of an old russian tsar, front view, Monomakh\'s cap with sable fur rim, long grey beard, heavy-lidded sly and capricious look, gold and red brocade collar'},
 polevik:{size:64,dir:'west',p:'small field spirit the size of a wheat stalk, dark earthy skin, hair of dry grass and ears of wheat, glowing eyes, mischievous'},
 anchutka:{size:64,dir:'west',p:'tiny slavic imp, heelless feet, small horns, scrawny black-red body, wet and muddy, sharp grin'},
 mezhevik:{size:64,dir:'west',p:'field boundary spirit, gnarled old man made of soil and stones, carrying a wooden boundary stake, moss beard'},
@@ -52,6 +55,7 @@ const ANIM_ACT={idle:'idle, breathing, subtle sway',attack:'attack, lunging forw
 const ANIM_FOR={ // свои действия для части существ; kot без атаки
 strelets:{idle:'idle, breathing, holding musket',attack:'aiming and firing musket, smoke puff from barrel',spawn:null},
 kot:{idle:'idle, tail swaying, adjusting spectacles',attack:null,spawn:null},
+strelets_face:{idle:'blinking',attack:null,spawn:null},tsar:{idle:'blinking',attack:null,spawn:null}, // лица оживляет js/faces.js
 poludnitsa:{idle:'floating idle, dress and hair drifting in hot wind',attack:'swinging sickle',spawn:'materializing out of shimmering heat haze'},
 mavka:{idle:'floating idle, hair drifting',spawn:'materializing out of thin air'},rusalka:{idle:'idle, wet hair swaying',spawn:'rising out of dark water'},blud:{idle:'flickering ghostly idle',spawn:'flaring up out of the darkness'},nav:{idle:'floating idle, wisps drifting',spawn:'materializing out of mist'},
 mara:{idle:'floating idle, robes drifting',spawn:'materializing out of shadows'},morok:{idle:'swirling fog idle',spawn:'condensing out of fog'},igosha:{idle:'floating idle, bobbing',spawn:'materializing out of thin air'},

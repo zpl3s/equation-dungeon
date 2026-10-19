@@ -101,11 +101,20 @@ function vertices(cells){const N=MAP.N,V=[];
 function ground(g,c,x,y,t){const bit=f=>t.reduce((m,v,k)=>f(v)?m|8>>k:m,0),W=bimg(BIO_WATER),wet=W&&t.includes('water');
   const bio=t.find(v=>BIOMES[v]&&bimg(BIOMES[v].ground)),B=bio&&BIOMES[bio],land=v=>v!==bio&&!(W&&v==='water');
   let base=land(c.g)?c.g:null;if(!base){const n={};t.filter(land).forEach(v=>n[v]=(n[v]||0)+1);base=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||bio||c.g}
-  plain(g,base,c.v,x,y);
-  if(B&&base!==bio){const fm=bit(v=>v===bio||wet&&v==='water'),S=bimg(B.sets[base]||'')||Object.values(B.sets).map(bimg).find(Boolean),k=bimg(B.ground),sx=Math.floor(c.v*k.n)*MAP.TW;
-    if(fm===15)plain(g,bio,c.v,x,y);else if(fm&&S)g.drawImage(bioPiece(S,B.ground+sx,fm,k.im,sx),x-MAP.TW/2,y);else if(c.g===bio)plain(g,bio,c.v,x,y)}
+  if(base!==bio)plain(g,base,c.v,x,y);
+  if(B)bioLand(g,B,c,x,y,bit(v=>v===bio||wet&&v==='water'),B.sets[base]&&bimg(B.sets[base])||Object.values(B.sets).map(bimg).find(Boolean),c.g===bio);
   if(wet){const wm=bit(v=>v==='water'),sx=Math.floor(c.v*W.n)*MAP.TW,M=bimg(BIO_SHORE);
     if(wm===15||!M&&c.g==='water')g.drawImage(W.im,sx,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);else if(M&&wm)g.drawImage(bioPiece(M,'w'+sx,wm,W.im,sx,'#1b1d12'),x-MAP.TW/2,y)}}
+// земля биома на углах fm клетки: виды плиток лежат пятнами (у каждой вершины свой вид по плавному шуму), между видами и с соседней землёй
+// граница по маске углов из набора переходов S. Без наборов — плитка клетки целиком, и только если клетка своя (own)
+function bioLand(g,B,c,x,y,fm,S,own){const k=bimg(B.ground),X=x-MAP.TW/2,tile=(v,m)=>m===15?g.drawImage(k.im,v*MAP.TW,0,MAP.TW,MAP.TH,X,y,MAP.TW,MAP.TH):g.drawImage(bioPiece(S,B.ground+v,m,k.im,v*MAP.TW),X,y);
+  if(!fm)return;if(!S){if(own)tile(bioVar(c.i,c.j,k.n),15);return}
+  const vs=[[0,0],[1,0],[0,1],[1,1]].map(([a,b])=>bioVar(c.i+a,c.j+b,k.n)),n={};vs.forEach((v,q)=>{if(fm&8>>q)n[v]=(n[v]||0)+1});
+  const order=Object.keys(n).map(Number).sort((a,b)=>n[b]-n[a]);tile(order[0],fm);
+  for(const v of order.slice(1))tile(v,vs.reduce((m,w,q)=>fm&8>>q&&w===v?m|8>>q:m,0))}
+// вид плитки у вершины: плавный шум с шагом в 3 клетки, поделённый на n видов
+function bioVar(i,j,n){const s=3,a=Math.floor(i/s),b=Math.floor(j/s),fx=i/s-a,fy=j/s-b,h=(p,q)=>rnd(hash(p,q)*31+17)(),l=(u,v,t)=>u+(v-u)*t*t*(3-2*t);
+  return Math.min(n-1,Math.floor(l(l(h(a,b),h(a+1,b),fx),l(h(a,b+1),h(a+1,b+1),fx),fy)*n))}
 // предмет биома на клетке по её собственному жребию (так видно, что стоит у соседей): картинка, кадр, отражение, сдвиг; null — пусто
 function bioPick(i,j,bo){const r=rnd(hash(i,j)*11+7),q=bo.find(([,p])=>r()<p);if(!q)return null;const k=q[0];return{k,f:k.fr[Math.floor(r()*k.fr.length)],fl:r()<.5,ox:(r()-.5)*16,oy:(r()-.5)*7}}
 // предметы биома, у которых выбрана основа: [картинка, вероятность на клетку]; null — ни одной

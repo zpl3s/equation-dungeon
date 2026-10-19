@@ -84,7 +84,7 @@ function buildMap(open){
   MB={cells,base:cv,rects};
 }
 // плитка земли целиком: биом (js/biomes.js), лента из мастерской (кремль, посад, дороги) или атлас
-function plain(g,t,v,x,y){const B=BIOMES[t],b=B&&bimg(B.ground);if(b)return g.drawImage(b.im,Math.floor(v*b.n)*MAP.TW,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);
+function plain(g,t,v,x,y){const B=BIOMES[t],b=t==='water'?bimg(BIO_WATER):B&&bimg(B.ground);if(b)return g.drawImage(b.im,Math.floor(v*b.n)*MAP.TW,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);
   const k=GROUND[t]&&kimg('g_'+t);if(k)return g.drawImage(k.im,Math.floor(v*k.n)*MAP.TW,0,MAP.TW,k.im.height,x-MAP.TW/2,y,MAP.TW,k.im.height);
   const vv=variants(GROUND[t]||'t_'+t);drawA(g,vv[Math.floor(v*vv.length)],x-MAP.TW/2,y)}
 // у каждой вершины сетки своя земля: большинство из 12 клеток вокруг (ближние четыре вдвое весомее), ничья — по жребию;
@@ -97,14 +97,14 @@ function vertices(cells){const N=MAP.N,V=[];
     V.push(road?'road':best)}
   return V}
 // клетка слоями по земле её углов t = [NW, NE, SW, SE] (верх, право, лево, низ ромба): сначала обычная земля (своя или соседа),
-// поверх — земля биома по маске углов из набора переходов к этой земле, поверх — вода с берегом. Без арта биома — плитка клетки целиком
-function ground(g,c,x,y,t){const bit=f=>t.reduce((m,v,k)=>f(v)?m|8>>k:m,0),W=bimg(BIO_WATER),wet=W&&t.includes('water');
-  const bio=t.find(v=>BIOMES[v]&&bimg(BIOMES[v].ground)),B=bio&&BIOMES[bio],land=v=>v!==bio&&!(W&&v==='water');
+// поверх — земля биома по маске углов из набора переходов к этой земле, поверх — вода с берегом. Без наборов переходов — плитка клетки целиком (края ромбами)
+function ground(g,c,x,y,t){const bit=f=>t.reduce((m,v,k)=>f(v)?m|8>>k:m,0),W=bimg(BIO_WATER),M=W&&BIO_SHORE&&bimg(BIO_SHORE),wet=M&&t.includes('water');
+  const bio=t.find(v=>BIOMES[v]&&bimg(BIOMES[v].ground)),B=bio&&BIOMES[bio],land=v=>v!==bio&&!(wet&&v==='water');
   let base=land(c.g)?c.g:null;if(!base){const n={};t.filter(land).forEach(v=>n[v]=(n[v]||0)+1);base=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||bio||c.g}
   if(base!==bio)plain(g,base,c.v,x,y);
   if(B)bioLand(g,B,c,x,y,bit(v=>v===bio||wet&&v==='water'),B.sets[base]&&bimg(B.sets[base])||Object.values(B.sets).map(bimg).find(Boolean),c.g===bio);
-  if(wet){const wm=bit(v=>v==='water'),sx=Math.floor(c.v*W.n)*MAP.TW,M=bimg(BIO_SHORE);
-    if(wm===15||!M&&c.g==='water')g.drawImage(W.im,sx,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);else if(M&&wm)g.drawImage(bioPiece(M,'w'+sx,wm,W.im,sx,'#1b1d12'),x-MAP.TW/2,y)}}
+  if(wet){const wm=bit(v=>v==='water'),sx=Math.floor(c.v*W.n)*MAP.TW;
+    if(wm===15)g.drawImage(W.im,sx,0,MAP.TW,MAP.TH,x-MAP.TW/2,y,MAP.TW,MAP.TH);else g.drawImage(bioPiece(M,'w'+sx,wm,W.im,sx,'#1b1d12'),x-MAP.TW/2,y)}}
 // земля биома на углах fm клетки: виды плиток лежат пятнами (у каждой вершины свой вид по плавному шуму), между видами и с соседней землёй
 // граница по маске углов из набора переходов S. Без наборов — плитка клетки целиком, и только если клетка своя (own)
 function bioLand(g,B,c,x,y,fm,S,own){const k=bimg(B.ground),X=x-MAP.TW/2,tile=(v,m)=>m===15?g.drawImage(k.im,v*MAP.TW,0,MAP.TW,MAP.TH,X,y,MAP.TW,MAP.TH):g.drawImage(bioPiece(S,B.ground+v,m,k.im,v*MAP.TW),X,y);

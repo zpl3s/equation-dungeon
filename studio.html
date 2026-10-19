@@ -53,7 +53,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
     <li><b>Анимации.</b> Игра сама оживляет любой спрайт: дыхание, парение, замах, вспышку от попадания, рассыпание при гибели, появление. Кнопки под превью всё это показывают. По-настоящему стоит рисовать только три анимации: «Покой», «Атака» и «Появление»; попадание и гибель остаются кодовыми. Покадровые анимации в PixelLab платные. Загружать их можно в нужную строку (PNG-лист, GIF или все кадры разом).</li>
     <li><b>Если генерирую я</b> (через PixelLab MCP), все варианты появятся прямо в карточке в блоке «Варианты от Claude», а карточка подсветится золотым. Кликни вариант, который берём за основу. Если существо смотрит не туда, нажми «⇄ Отразить»: нечисть должна смотреть влево, на стрельца.</li>
     <li><b>Кремль.</b> Во вкладке «Кремль» лежат варианты зданий, стен, башен и земли. Клик по варианту — это основа, она сохраняется в <code>assets/buildings</code> и сразу видна на карте кремля сверху. У земли отмечай несколько плиток и жми «Сохранить набор»: игра будет чередовать их.</li>
-    <li><b>Биомы.</b> Во вкладке «Биомы» — земля, переходы между землями, вода, деревья, предметы и фон боя зоны. У земли, воды, деревьев и предметов отметь несколько вариантов и жми «Сохранить набор»: игра будет чередовать их. Набор перехода и фон боя — клик по варианту. Основа сохраняется в <code>assets/biomes</code>, карта сверху сразу показывает результат.</li>
+    <li><b>Биомы.</b> Во вкладке «Биомы» — земля, вода, деревья, предметы и фон боя зоны. У земли, воды, деревьев и предметов отметь несколько вариантов и жми «Сохранить набор»: игра будет чередовать их. Фон боя — клик по варианту. Основа сохраняется в <code>assets/biomes</code>, карта сверху сразу показывает результат.</li>
     <li>Выбрал основы — напиши мне «выбрал»: я закоммичу их, и они появятся в игре на сайте.</li>
   </ol></div>
 
@@ -267,7 +267,7 @@ function renderKrem(){$('#list').innerHTML=`<div class="panel"><h2>Кремль 
   KREM_IDS().forEach(id=>{kPaint(id);kCands(id)});kMap()}
 
 // ---------- раздел «Биомы»: земля, переходы, вода, деревья, предметы и фон боя зоны (js/biomes.js); основа → assets/biomes/<id>.png ----------
-const BGROUPS=[{name:'Земля и вода',k:'tiles'},{name:'Переходы между землями',k:'set'},{name:'Деревья, кусты и предметы',k:'obj'},{name:'Фон боя',k:'arena'}].map(g=>({name:g.name,ids:BIO_IDS.filter(id=>BIOME[id].kind===g.k)}));
+const BGROUPS=[{name:'Земля и вода',k:'tiles'},{name:'Переходы между землями',k:'set'},{name:'Деревья, кусты и предметы',k:'obj'},{name:'Фон боя',k:'arena'}].map(g=>({name:g.name,ids:BIO_IDS.filter(id=>BIOME[id].kind===g.k)})).filter(g=>g.ids.length);
 const bsel={}; // отмеченные варианты для набора: id → номера
 async function bStore(id,cv){const blob=await new Promise(r=>cv.toBlob(r,'image/png')),name=id+'.png';
   if(root&&await perm(true)){const d=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('biomes',{create:true}),fh=await d.getFileHandle(name,{create:true}),ws=await fh.createWritable();
@@ -311,7 +311,7 @@ function bCands(id){const box=$('#bcd_'+id);if(!box)return;box.innerHTML='';cons
 function bMap(){const c=$('#bmap');if(!c||!ATL.complete)return;MB=null;buildMap(()=>true);c.getContext('2d').drawImage(MB.base,0,0);const a=$('#barena');if(a)paintArena(a,0)}
 function bRefresh(){bMap();renderBar();BIO_IDS.forEach(id=>{const el=$('#bc_'+id);if(el&&el.classList.contains('done')!==!!BIM[id]){el.outerHTML=bCardHTML(id);bCands(id)}bPaint(id)})}
 function renderBio(){BIO_IDS.forEach(bimg);
-  $('#list').innerHTML=`<div class="panel"><h2>Поле с полуденницами на карте</h2><p class="small muted">Поле — внизу карты, между Опушкой (слева) и Кощеевым царством (справа). Где основа ещё не выбрана, стоит старый арт; переходы появятся, когда выбраны земля Поля и набор перехода.</p>
+  $('#list').innerHTML=`<div class="panel"><h2>Поле с полуденницами на карте</h2><p class="small muted">Поле — внизу карты, между Опушкой (слева) и Кощеевым царством (справа). Где основа ещё не выбрана, стоит старый арт.</p>
     <canvas id="bmap" width="${MAP.W}" height="${MAP.H}" style="width:100%;height:auto"></canvas><div class="small muted" style="margin:8px 0 4px">Бой на Поле:</div><canvas id="barena" style="width:100%;height:220px;display:block"></canvas></div>`+
   BGROUPS.map(g=>`<div class="panel"><h2>${g.name}</h2>${g.ids.map(bCardHTML).join('')}</div>`).join('');
   BIO_IDS.forEach(id=>{bPaint(id);bCands(id)});bMap()}

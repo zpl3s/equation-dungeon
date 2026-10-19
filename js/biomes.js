@@ -14,13 +14,7 @@ const BIO_IMG='create_image_pro: стиль — poludnitsa.png (outline, detail,
 const BIOME={
 b_pole_ground:{kind:'tiles',n:'Земля Поля',tool:BIO_TILES,note:'По 4 плитки на каждый из четырёх видов земли. Отметь 2–4 плитки, которые хорошо ложатся рядом: игра будет чередовать их.',
   p:`1). dry yellowed stubble field, short cut straw stalks in rows, dusty earth between 2). sun-scorched field with dry brown grass and small cracks in the earth 3). withered ochre rye flattened by wind 4). trampled dusty field earth with sparse dry weeds and a few small stones. Burnt midday field outside a slavic village, ${BIO_SUF}`},
-t_pole_posad:{kind:'set',n:'Переход Поле — посад',a:'field',b:'posad',tool:BIO_TILES+', tile_feature tileset',note:'Граница Поля с посадом вокруг стен и с дорогами. Из набора берётся только форма границы, цвета — из плиток земли.',
-  p:`dry dusty stubble field with dull ochre straw to dark trampled meadow grass with dirt patches. ${BIO_SUF}`},
-t_pole_opushka:{kind:'set',n:'Переход Поле — Опушка',a:'field',b:'opushka',tool:BIO_TILES+', tile_feature tileset',note:'Граница с Берёзовой опушкой (слева внизу). Из набора берётся только форма границы.',
-  p:`dry dusty stubble field with dull ochre straw to dark green birch grove grass with fallen yellow leaves. ${BIO_SUF}`},
-t_pole_koschei:{kind:'set',n:'Переход Поле — Кощеево царство',a:'field',b:'koschei',tool:BIO_TILES+', tile_feature tileset',note:'Граница с Кощеевым царством (справа внизу). Из набора берётся только форма границы.',
-  p:`dry dusty stubble field with dull ochre straw to dead cracked black ashen earth with dark red stains. ${BIO_SUF}`},
-b_pole_water:{kind:'tiles',n:'Вода: пруды и речка',tool:BIO_TILES,note:'Пруды в Поле, речка у бани и река Омута. Отметь 2–4 плитки. Форму берега игра берёт из перехода Поле — Опушка и обводит тёмной кромкой.',
+b_pole_water:{kind:'tiles',n:'Вода: пруды и речка',tool:BIO_TILES,note:'Пруд в Поле, речка у бани и река Омута. Отметь 2–4 плитки.',
   p:`1). dark still pond water with faint teal ripples 2). dark river water with pale reflections of a hazy sky 3). murky pond water with floating duckweed and a few lily pads 4). deep dark water with small light glints. Water of a slavic river and village pond, ${BIO_SUF}`},
 b_pole_trees:{kind:'obj',size:64,n:'Деревья',tool:BIO_IMG,note:'Одинокие ракиты и сухие деревья среди поля. Отметь несколько.',
   p:`lone gnarled tree standing in a dry field: crooked old willow or wild pear tree with a twisted dark trunk, sparse dusty olive foliage, a few dead branches, ${BIO_OBJ}`},
@@ -38,10 +32,10 @@ b_pole_arena:{kind:'arena',w:170,h:56,n:'Фон боя на Поле',tool:BIO_I
 // чем рисуется зона, по её земле (ZONES[].ground): ground — плитки; sets — переходы к соседним землям (без своего — граница резкая);
 // objs — что стоит на клетке и с какой вероятностью (пока ни одна основа не выбрана — старые деревья из атласа); ponds — пруды (точка сетки от центра, радиус)
 const BIOMES={
-field:{ground:'b_pole_ground',sets:{posad:'t_pole_posad',road:'t_pole_posad',opushka:'t_pole_opushka',koschei:'t_pole_koschei'},
+field:{ground:'b_pole_ground',sets:{}, // наборы переходов Поля пользователь не взял: края ромбами
   objs:{b_pole_bushes:.07,b_pole_trees:.018,b_pole_snop:.035,b_pole_kamni:.02,b_pole_pugalo:.008},ponds:[[12.6,13,1.8]],arena:'b_pole_arena'},
 };
-const BIO_WATER='b_pole_water',BIO_SHORE='t_pole_opushka'; // вода — для всех водоёмов карты; форма берега — маски этого набора переходов
+const BIO_WATER='b_pole_water',BIO_SHORE=null; // вода — для всех водоёмов карты; BIO_SHORE — набор переходов, чьи маски дают форму берега (без него вода поклеточно)
 const BIO_IDS=Object.keys(BIOME);
 
 // ---------- загрузка основ: assets/biomes/<id>.png ----------

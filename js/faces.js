@@ -91,7 +91,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)return seen
 addEventListener('pagehide',seenSet);
 document.addEventListener('click',e=>{const c=e.target.closest('canvas.face');if(!c||saying())return;
   if(c.dataset.face==='tsar')talk();else{const n=needs();n.length&&Math.random()<.7?needLine(n):say('strelets',line('idle'))}});
-function faceTick(){const t=Date.now(),hidden=document.hidden;
+function faceTick(){if(typeof S==='undefined')return;             // game.js ещё грузится
+  const t=Date.now(),hidden=document.hidden;
   if(greet===undefined){greet=greetKind();seenSet()}                 // первый тик: игра уже загружена
   if(hero!==S.name){if(hero)greet='first',prevNeeds=null;hero=S.name}   // прежний стрелец погиб — новый здоровается заново
   if(!hidden&&t-seenAt>6e4){seenAt=t;seenSet()}

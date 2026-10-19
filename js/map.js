@@ -34,8 +34,9 @@ function drawK(g,k,x,y,flip,dy=0){x=Math.round(x);y=Math.round(y-k.ay+dy);if(!fl
 
 function cellInfo(i,j){
   const dx=i+.5-MAP.C,dy=j+.5-MAP.C,R=MAP.R,ax=Math.abs(dx),ay=Math.abs(dy),m=Math.max(ax,ay),r=Math.hypot(dx,dy),h=rnd(hash(i,j))();
-  if(m<R)return{z:-1,g:ax<1||ay<1||ax<2&&ay<2?'most':'kreml'}; // внутри стен: мостовая крестом от ворот и площадь в центре
-  if(m<R+2.5)return{z:-2,g:ax<1||ay<1?'road':'posad'};         // посад вокруг стен, дороги из ворот
+  if(m<R)return{z:-1,g:ax<1||ay<1||ax<2.6&&ay<2.6?'most':'kreml'}; // внутри стен: мостовая от ворот и соборная площадь в центре
+  if(m<R+2.5){if(dx<0&&dy>0&&Math.abs(dx+dy)<2.6+h*.8)return{z:-2,g:'water'}; // речка от Омута к левой башне, у неё баня
+    return{z:-2,g:ax<1||ay<1?'road':'posad'}}                     // посад вокруг стен, дороги из ворот
   const sx=(dx-dy)*MAP.TW/2,sy=(dx+dy)*MAP.TH/2,a=Math.atan2(sy,sx)+(h-.5)*.3;
   const zi=Math.floor(((a-Math.PI/2+Math.PI/8)%(2*Math.PI)+4*Math.PI)%(2*Math.PI)/(Math.PI/4));
   const perp=k=>{const t=RAY(k);return{along:sx*Math.cos(t)+sy*Math.sin(t),d:Math.abs(sx*Math.sin(t)-sy*Math.cos(t))/MAP.TW}};
@@ -52,7 +53,7 @@ function buildMap(open){
     const c=cellInfo(i,j),r=rnd(hash(i,j)*7+3);c.i=i;c.j=j;c.v=r();cells.push(c);
     if(c.g==='road'||c.g==='water'||c.z===-1)continue;
     const [x,y]=gp(i+.5,j+.5);if(!onScreen(x,y))continue;const ox=()=>(r()-.5)*16,oy=()=>(r()-.5)*7;
-    const trees=c.z===-2?{bush:.05}:ZONES[c.z].trees;
+    const trees=grove(c.i,c.j)||(c.z===-2?{bush:.05}:ZONES[c.z].trees);
     for(const k in trees)if(r()<trees[k]){const vv=variants(k),n=vv[Math.floor(r()*vv.length)],px=x+ox(),py=y+oy();objs.push({y:py,f:g=>drawA(g,n,px,py)})}
     if(c.z>=0&&ZONES[c.z].mounds&&r()<.08){const px=x+ox(),py=y+oy();objs.push({y:py,f:g=>mound(g,px,py)})}
     if(c.z>=0&&ZONES[c.z].rocks&&r()<.14){const px=x+ox(),py=y+oy(),s=.7+r()*.6;objs.push({y:py,f:g=>rock(g,px,py,s)})}
@@ -64,7 +65,7 @@ function buildMap(open){
     [.25,.5,.75].forEach(t=>{const[px,py]=at(a,b,t);objs.push({y:py+1,f:g=>tower(g,t===.5?'tower_gate':'tower_small',px,py,slash)})})}
   K.forEach(([i,j])=>{const[px,py]=gp(i,j);objs.push({y:py+1,f:g=>tower(g,'tower_corner',px,py,false)})});
   BLD.forEach(b=>{const[px,py]=gp(MAP.C+b.at[0],MAP.C+b.at[1]);objs.push({y:py,f:g=>{const k=kimg(b.id);
-    if(k){drawK(g,k,px,py);rects.push({id:b.id,x:Math.round(px)-k.ax+k.x0,y:Math.round(py)-k.ay+k.y0,w:k.x1-k.x0+1,h:k.y1-k.y0+1})}
+    if(k){drawK(g,k,px,py,b.fl);rects.push({id:b.id,x:b.fl?Math.round(px)+k.ax-k.x1-1:Math.round(px)-k.ax+k.x0,y:Math.round(py)-k.ay+k.y0,w:k.x1-k.x0+1,h:k.y1-k.y0+1})}
     else if(b.spr){drawA(g,b.spr,px,py);const a=ATLAS[b.spr];rects.push({id:b.id,x:px-a[4],y:py-a[5],w:a[2],h:a[3]})}
     else{kapishche(g,px,py);rects.push({id:b.id,x:px-22,y:py-34,w:44,h:42})}}})});
   const cv=document.createElement('canvas');cv.width=MAP.W;cv.height=MAP.H;const g=cv.getContext('2d');g.imageSmoothingEnabled=false;
@@ -88,6 +89,9 @@ function wallSpan(g,a,b,q,px,py,slash,front){const k=front&&kimg('wall_out')||ki
   for(let t=q/4+.04;t<(q+1)/4-.03;t+=.02){const[x,y]=gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);pole(g,x,y)}}
 // башня стоит центром на линии стены: низ картинки — ближний угол её основания. Проезд нарисован на левой грани, на сторонах «/» — отражаем
 function tower(g,id,x,y,flip){const k=kimg(id);if(k)return drawK(g,k,x,y,flip,(k.x1-k.x0+1)/4);if(id!=='tower_small')drawA(g,'tower',x,y)}
+// роща вокруг капища за стенами: берёзы и дубы, но не перед самим капищем, чтобы его было видно
+function grove(i,j){const b=BLD.find(b=>b.id==='kapishche');if(!b)return null;const cx=MAP.C+b.at[0]-.8,cy=MAP.C+b.at[1]-.8,dx=i+.5-cx,dy=j+.5-cy,d=Math.hypot(dx,dy);
+  if(d>3.4)return null;return d>1.3&&dx+dy<1?{birch:.45,oak:.2}:{}}
 function diamond(g,i,j,col){const[x,y]=gp(i,j);g.fillStyle=col;g.beginPath();g.moveTo(x,y);g.lineTo(x+MAP.TW/2,y+MAP.TH/2);g.lineTo(x,y+MAP.TH);g.lineTo(x-MAP.TW/2,y+MAP.TH/2);g.closePath();g.fill()}
 function pole(g,x,y){g.fillStyle='#1e130b';g.fillRect(x-2,y-15,4,15);g.beginPath();g.moveTo(x-2,y-15);g.lineTo(x+2,y-15);g.lineTo(x,y-19);g.fill();g.fillStyle='#6b4a2e';g.fillRect(x-1,y-14,2,13)}
 function mound(g,x,y){g.fillStyle='#1e1610';g.beginPath();g.ellipse(x,y-2,15,7,0,0,7);g.fill();g.fillStyle='#3e3022';g.beginPath();g.ellipse(x-1,y-5,10,4,0,0,7);g.fill()}

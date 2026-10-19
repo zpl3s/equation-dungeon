@@ -56,8 +56,9 @@ function passDays(){const cur=gday(),n=cur-S.day;if(n<=0)return;const was=S.sat;
     if(S.water){S.water=0;S.sat=35;S.hp=Math.max(S.hp,Math.round(maxHP()*.5));saved=1}else return die('hunger','Голод',S.day+i-1)}
   S.day=cur;note={n,was,sat:S.sat,saved};save()}
 // last — последний прожитый игровой день
-function die(how,cause,last=gday()){clearInterval(tick);busy=0;run=null;tut=null;
-  const f={name:S.name,days:Math.max(1,last-S.born+1),solved:solved(),lvl:S.lvl,rank:rankName(),zone:S.far>=0?ZONES[S.far].name:'',how,cause,date:how==='hunger'?dkey(last+1):ldate(now())};
+function die(how,cause,last=gday()){const w=how==='battle'&&run&&run.lastWrong,miss=w?{q:w.q,in:run.lastIn,a:fa(w),s:w.s}:null; // последний неверный ответ — для экрана смерти и Книги павших
+  clearInterval(tick);busy=0;run=null;tut=null;
+  const f={miss,name:S.name,days:Math.max(1,last-S.born+1),solved:solved(),lvl:S.lvl,rank:rankName(),zone:S.far>=0?ZONES[S.far].name:'',how,cause,date:how==='hunger'?dkey(last+1):ldate(now())};
   S.fallen.unshift(f);reborn();note=null;show(()=>deadView(f));return true}
 function fall(m){if(S.water){S.water=0;S.hp=Math.round(maxHP()*.5);S.sat=Math.max(S.sat,35);return endRun(false,'water')}
   die('battle',`${m.name}, ${ZONES[run.zi].short}`)}
@@ -164,8 +165,8 @@ function beastHTML(){const zn=id=>ZONES.find(z=>z.mobs.includes(id)||z.boss===id
 function izbaHTML(){if(izTab==='beast')izTab='lessons';const tabs=[['lessons','Уроки'],['stats','Летопись'],['fallen','Книга павших']].map(([k,n])=>`<button data-act="izt" data-t="${k}" class="${izTab===k?'on':''}">${n}</button>`).join('');let b='';
   if(izTab==='lessons'){const ts=ZONES.filter((_,zi)=>zOpen(zi)).flatMap(z=>z.topics);
     b=`<div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${cr('kot',128)}</div><div class="bubble"><p>Мур. Какой урок повторим, стрелец?</p><div class="row">${ts.map(t=>`<button data-act="lesson" data-t="${t}">${T[TI[t]].name}</button>`).join('')}</div></div></div>`}
-  else if(izTab==='fallen')b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${S.fallen.length?`<div class="tscroll"><table><tr><th>Стрелец</th><th>Чин</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Дата</th></tr>
-      ${S.fallen.map(f=>`<tr><td>${f.name}</td><td>${f.rank||'—'}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`;
+  else if(izTab==='fallen')b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${S.fallen.length?`<div class="tscroll"><table><tr><th>Стрелец</th><th>Чин</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Последнее уравнение</th><th>Дата</th></tr>
+      ${S.fallen.map(f=>`<tr><td>${f.name}</td><td>${f.rank||'—'}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${f.miss?`<details><summary>${Array.isArray(f.miss.q)?f.miss.q.join('; '):f.miss.q}</summary><div class="small">Твой ответ: <span class="bad">${esc(f.miss.in)}</span> · верно: <span class="ok">${f.miss.a}</span></div><ol class="small">${f.miss.s.map(stepLi).join('')}</ol></details>`:'—'}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`;
   else{const days=[...Array(7)].map((_,i)=>dkey(gday()-(6-i)));
     b=`<table><tr><th>Тема</th><th>Верно</th><th>Точность*</th><th>Ср. время</th><th>Рекорд</th><th>Норма</th></tr>${T.map(t=>{const q=S.stats[t.id];if(!q)return'';
       return`<tr><td>${t.name}</td><td>${q.ok}/${q.n}</td><td>${q.r.length?Math.round(acc(q)*100)+'%':'—'}</td><td>${q.ok?Math.round(q.t/q.ok)+' с':'—'}</td><td>${q.best?Math.round(q.best)+' с':'—'}</td><td>${t.par} с</td></tr>`}).join('')}</table>
@@ -179,9 +180,13 @@ function introView(){const lead=S.fallen.length?`Прежний стрелец, 
   <div style="margin-left:16px"><p class="gold">${lead}</p>${INTRO.map(p=>`<p>${p}</p>`).join('')}
   <p class="muted">Навещай стрельца каждый день. Корми в корчме: без еды он проживёт три дня. Раны лечит знахарка, усталость снимает баня, страх — церковь и капище. Погибнет — всё начнётся сначала, останется только имя в Книге павших.</p></div></div>
   <div class="row c" style="margin-top:12px"><button class="main" data-act="intro">Выйти к воротам</button></div></div>`;paintAll()}
+// последнее уравнение павшего: что было, что ответил, как надо
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const missHTML=m=>`<div class="sol" style="text-align:left;margin:12px 0"><div class="small muted">Последнее уравнение</div><div class="eq">${eqHTML(m.q)}</div>
+  <p style="margin:6px 0">Твой ответ: <b class="bad">${esc(m.in)}</b> · верно: <b class="ok">${m.a}</b></p><ol>${m.s.map(stepLi).join('')}</ol></div>`;
 function deadView(f){const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`,hunger=f.how==='hunger';
   app.innerHTML=`<div class="panel c story"><h1>${hunger?'Умер от голода':'Пал в бою'}</h1><div class="row c">${cr('strelets',128,'sil','r')}</div>
-  <p>Стрелец ${f.name} ${hunger?'не дождался тебя и умер от голода':`пал в бою: ${f.cause}`}. Кот Учёный вписал его имя в Книгу павших.</p>
+  <p>Стрелец ${f.name} ${hunger?'не дождался тебя и умер от голода':`пал в бою: ${f.cause}`}. Кот Учёный вписал его имя в Книгу павших.</p>${f.miss?missHTML(f.miss):''}
   <table>${row('Прожил',f.days+' '+pl(f.days,'день','дня','дней'))}${row('Решил задач',f.solved)}${row('Уровень',f.lvl)}${f.rank?row('Чин',f.rank):''}${row('Дошёл до',f.zone||'не выходил за ворота')}${row('Дата смерти',ru(f.date))}</table>
   <p class="muted" style="margin-top:12px">Всё нажитое пропало: уровень, золото, вещи, открытые пути, освоенные темы, чин и царские приказы.</p>
   <div class="row c"><button class="main" data-act="newhero">Новый стрелец</button></div></div>`;paintAll()}
@@ -288,7 +293,7 @@ function hit(){if(!run||busy)return;const k=run.tg,m=run.mons[k];if(!m||m.hp<=0)
     else m.eq=m.boss?bossEq():newEq(m.ti);
     msg(txt,crit?'gold':'ok');
   }else{
-    const f=fear(),hurt=Math.round(m.atk*f);run.combo=0;S.hp=Math.max(0,S.hp-hurt);fright(2);run.lastWrong=e;
+    const f=fear(),hurt=Math.round(m.atk*f);run.combo=0;S.hp=Math.max(0,S.hp-hurt);fright(2);run.lastWrong=e;run.lastIn=inp.trim();
     attackFx($('#m'+k+' canvas'));anim($('#m'+k+' canvas'),'lungel');setTimeout(()=>{slashFx();hurtFx($('#hero canvas'))},130);anim($('#arena'),'flash');
     msg(`Мимо. ${m.name} бьёт на ${hurt}${f>1?' — страх, удар ×1.5':''}. <button data-act="sol">Показать решение</button>`,'bad');m.eq=m.boss?bossEq():newEq(m.ti);
   }

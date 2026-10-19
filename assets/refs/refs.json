@@ -1,9 +1,55 @@
 {
  "yaga": [
-  {"file": "1.jpg", "title": "Баба-Яга в ступе, иллюстрация к «Василисе Прекрасной»", "author": "Иван Билибин", "year": "1900", "url": "https://commons.wikimedia.org/wiki/File:Bilibin._Baba_Yaga.jpg", "license": "общественное достояние", "use": "облик: фигура в ступе, растрёпанные белые волосы, наряд"},
-  {"file": "2.jpg", "title": "Баба-Яга с вороном, виньетка", "author": "Иван Билибин", "year": "до 1930", "url": "https://commons.wikimedia.org/wiki/File:Baba_Yaga_by_I.Bilibin_(priv.coll).jpg", "license": "общественное достояние", "use": "лицо: крючковатый нос, платок, морщины"}
+  {
+   "file": "1.jpg",
+   "title": "Баба-Яга в ступе, иллюстрация к «Василисе Прекрасной»",
+   "author": "Иван Билибин",
+   "year": "1900",
+   "url": "https://commons.wikimedia.org/wiki/File:Bilibin._Baba_Yaga.jpg",
+   "license": "общественное достояние",
+   "use": "облик: фигура в ступе, растрёпанные белые волосы, наряд"
+  },
+  {
+   "file": "2.jpg",
+   "title": "Баба-Яга с вороном, виньетка",
+   "author": "Иван Билибин",
+   "year": "до 1930",
+   "url": "https://commons.wikimedia.org/wiki/File:Baba_Yaga_by_I.Bilibin_(priv.coll).jpg",
+   "license": "общественное достояние",
+   "use": "лицо: крючковатый нос, платок, морщины"
+  }
  ],
  "vodyanoy": [
-  {"file": "1.jpg", "title": "Водяной", "author": "Иван Билибин", "year": "1934", "url": "https://commons.wikimedia.org/wiki/File:Vodyanoy.jpg", "license": "общественное достояние", "use": "облик: жабья голова, борода, перепончатые лапы, выглядывает из воды"}
+  {
+   "file": "1.jpg",
+   "title": "Водяной",
+   "author": "Иван Билибин",
+   "year": "1934",
+   "url": "https://commons.wikimedia.org/wiki/File:Vodyanoy.jpg",
+   "license": "общественное достояние",
+   "use": "облик: жабья голова, борода, перепончатые лапы, выглядывает из воды"
+  }
+ ],
+ "gorynych": [
+  {
+   "file": "1.jpg",
+   "title": "Змей Горыныч, плакат",
+   "author": "Иван Билибин",
+   "year": "1912",
+   "url": "https://commons.wikimedia.org/wiki/File:Ivan_Bilibin_-_zmey-gorynych-1912.jpg",
+   "license": "общественное достояние",
+   "use": "облик: красный чешуйчатый змей с зелёными крыльями, несколько голов"
+  }
+ ],
+ "viy": [
+  {
+   "file": "1.jpg",
+   "title": "«Подымите мне веки: не вижу!», иллюстрация к «Вию» Гоголя (фрагмент)",
+   "author": "Р. Штейн",
+   "year": "1901",
+   "url": "https://commons.wikimedia.org/wiki/File:Вий_(cropped).jpg",
+   "license": "общественное достояние",
+   "use": "облик: косматый приземистый Вий, длинные тяжёлые веки до пола"
+  }
  ]
 }

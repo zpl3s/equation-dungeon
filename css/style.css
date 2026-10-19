@@ -27,7 +27,17 @@ canvas{image-rendering:pixelated;display:block}
 .sil{filter:brightness(0);opacity:.55}
 .bob{animation:bob 1.4s steps(2) infinite}
 @keyframes bob{50%{transform:translateY(-4px)}}
-.hdr h1{font-size:26px}
+.hdr h1{font-size:26px;margin:0 0 4px}
+/* шапка: портрет, имя, четыре нужды */
+.hrow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.port{background:#0a0706;border:2px solid var(--line);padding:2px}
+.who{flex:1;min-width:230px}
+.needs{flex:1;min-width:260px;display:grid;grid-template-columns:auto 1fr auto;gap:5px 8px;align-items:center}
+.needs .bar{min-width:70px}
+.bar.sat>i{background:var(--gold)}.bar.vig>i{background:var(--xp)}.bar.spirit>i{background:#8a6ac8}
+.warn{margin-top:10px;padding-top:8px;border-top:1px solid #0006;font-size:14px}
+input.tm{flex:0 0 auto;font-size:16px;padding:6px 8px;color-scheme:dark}
+.tscroll{overflow-x:auto}
 .mapwrap{padding:0;overflow:hidden}
 #map{width:100%;height:auto}
 .arena{position:relative;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;min-height:262px;padding:10px 14px;overflow:hidden}

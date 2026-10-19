@@ -104,6 +104,8 @@ th{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);font-
 .item button{margin-top:auto}
 .beast{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:16px}
 .beast>div{display:flex;gap:10px;background:var(--panel2);border:2px solid var(--line);padding:10px}
+.beast>div[data-act]{cursor:pointer}.beast>div[data-act]:hover{border-color:var(--gold)}
+.beastart h3{font:10px 'Press Start 2P',monospace;color:var(--gold);margin:16px 0 6px}.beastart ul{margin:0;padding-left:20px}.beastart li{margin-bottom:4px}
 ul{padding-left:22px}li{margin-bottom:6px}
 /* царские приказы (js/prikazy.js) */
 .pzq{font-size:18px;margin:0 0 10px}

@@ -18,7 +18,7 @@ const DEF={xp:0,lvl:1,gold:0,sword:0,armor:0,potions:2,scrolls:3,stats:{},days:{
 const fresh=()=>JSON.parse(JSON.stringify(DEF));
 function load(){let o={};try{o=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}const s=Object.assign(fresh(),o);delete s.unlocked;return s}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-let S=load(),run=null,tick=null,busy=0,view=null,tut=null,izTab='lessons',note=null;
+let S=load(),run=null,tick=null,busy=0,view=null,tut=null,izTab='lessons',beastId=null,note=null;
 const mapSt={hover:null,sel:null};
 const need=l=>30+20*l;
 const maxHP=()=>100+(S.lvl-1)*5+S.armor*10;
@@ -143,17 +143,27 @@ const shopHTML=ids=>`<div class="panel"><p class="px small gold">${S.gold} зо�
   return`<div class="item"><span class="px small">${it.name}</span><span class="small muted">${it.d}</span>${h?`<span class="small">${h}</span>`:''}<button data-act="buy" data-id="${id}" ${!ok||S.gold<c?'disabled':''}>${ok?it.v+' · '+c:it.no||'Не нужно'}</button></div>`}).join('')}</div></div>`;
 function buy(id){const it=SHOP[id],c=it.c();if(S.gold<c||it.ok&&!it.ok())return;S.gold-=c;it.act();save();toast(`${it.name} · −${c} зол.`);view&&view()}
 function building(id){const b=BLD.find(x=>x.id===id);let body;
-  if(BSHOP[id])body=(BSAY[id]?`<div class="panel story"><p style="margin:0">${BSAY[id]}</p></div>`:'')+shopHTML(BSHOP[id]);
+  if(BSHOP[id])body=(BSAY[id]?`<div class="panel story"><p style="margin:0">${BSAY[id]}</p></div>`:'')+shopHTML(BSHOP[id])+(id==='kapishche'?beastHTML():'');
   else if(id==='izba')body=izbaHTML();
   else if(id==='palaty')body=palatyHTML();
   else body='<div class="panel"><p class="muted">Скоро здесь что-то будет.</p></div>';
   app.innerHTML=`${hdr()}<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${b.name}</h1><button data-act="map">← В кремль</button></div><p class="muted" style="margin-top:10px">${b.desc}</p></div>${body}`;paintAll()}
-function izbaHTML(){const tabs=[['lessons','Уроки'],['beast','Бестиарий'],['stats','Летопись'],['fallen','Книга павших']].map(([k,n])=>`<button data-act="izt" data-t="${k}" class="${izTab===k?'on':''}">${n}</button>`).join('');let b='';
+// ---------- бестиарий на капище: волхв знает всю нечисть; статьи — js/bestiary.js ----------
+function beastHTML(){const zn=id=>ZONES.find(z=>z.mobs.includes(id)||z.boss===id);
+  if(beastId){const id=beastId,c=CR[id],B=BEAST[id]||{},z=zn(id),met=S.met[id]!==undefined;
+    return`<div class="panel beastart"><button data-act="beastback">← Ко всей нечисти</button>
+      <div class="row" style="align-items:flex-start;margin-top:12px"><div>${cr(id,128,met?'':'sil')}</div><div style="flex:1;min-width:240px">
+      <h2 style="margin-bottom:4px">${c.n}</h2><p class="small muted" style="margin-top:0">${z.name}${c.boss?' · хозяин зоны':''} · ${met?'побеждено: '+S.met[id]:'ещё не встречалась'}</p>
+      <p><i>${c.lore}</i></p>
+      <h3>Кто такой</h3><p>${B.who}</p><h3>Откуда берётся</h3><p>${B.why}</p><h3>Чем занят</h3><p>${B.does}</p>
+      <h3>В классике</h3>${B.lit&&B.lit.length?`<ul>${B.lit.map(t=>`<li>${t}</li>`).join('')}</ul>`:'<p class="muted">В классической литературе почти не встречается — ищи в книгах ниже.</p>'}
+      <h3>Почитать о мифах</h3><ul>${(B.books||[]).map(k=>`<li>${BK[k]}</li>`).join('')}</ul></div></div></div>`}
+  return`<div class="panel"><h2>Бестиарий</h2><p class="muted">Волхв ведёт летопись нечисти: про каждую тварь знает, кто она, откуда берётся и в каких книгах о ней прочесть. Нажми на любую.</p>
+    ${ZONES.map(z=>`<h3>${z.name}</h3><div class="beast">${[...z.mobs,z.boss].map(id=>{const met=S.met[id]!==undefined;
+      return`<div data-act="beast" data-id="${id}">${cr(id,64,met?'':'sil')}<div><div class="px small ${CR[id].boss?'gold':''}">${CR[id].n}</div><div class="small">${CR[id].lore}</div><div class="small muted">${met?'Побеждено: '+S.met[id]:'Ещё не встречалась'}</div></div></div>`}).join('')}</div>`).join('')}</div>`}
+function izbaHTML(){if(izTab==='beast')izTab='lessons';const tabs=[['lessons','Уроки'],['stats','Летопись'],['fallen','Книга павших']].map(([k,n])=>`<button data-act="izt" data-t="${k}" class="${izTab===k?'on':''}">${n}</button>`).join('');let b='';
   if(izTab==='lessons'){const ts=ZONES.filter((_,zi)=>zOpen(zi)).flatMap(z=>z.topics);
     b=`<div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${cr('kot',128)}</div><div class="bubble"><p>Мур. Какой урок повторим, стрелец?</p><div class="row">${ts.map(t=>`<button data-act="lesson" data-t="${t}">${T[TI[t]].name}</button>`).join('')}</div></div></div>`}
-  else if(izTab==='beast')b=ZONES.map((z,zi)=>zOpen(zi)?`<h2>${z.name}</h2><div class="beast">${[...z.mobs,z.boss].map(id=>S.met[id]!==undefined?
-      `<div>${cr(id,64,'')}<div><div class="px small ${CR[id].boss?'gold':''}">${CR[id].n}</div><div class="small">${CR[id].lore}</div><div class="small muted">Побеждено: ${S.met[id]}</div></div></div>`:
-      `<div>${cr(id,64,'sil')}<div><div class="px small">???</div><div class="small muted">Ещё не встречалась.</div></div></div>`).join('')}</div>`:'').join('');
   else if(izTab==='fallen')b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${S.fallen.length?`<div class="tscroll"><table><tr><th>Стрелец</th><th>Чин</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Дата</th></tr>
       ${S.fallen.map(f=>`<tr><td>${f.name}</td><td>${f.rank||'—'}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`;
   else{const days=[...Array(7)].map((_,i)=>dkey(gday()-(6-i)));
@@ -310,7 +320,7 @@ function toast(t){const d=document.createElement('div');d.className='toast';d.te
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const d=b.dataset;
   const A={map:()=>show(mapScreen),bld:()=>show(()=>building(d.id)),go:()=>startExp(+d.zi),intro:()=>{S.intro=true;save();show(mapScreen)},
-    lesson:()=>{const back=view;startTut([d.t],()=>show(back),true)},izt:()=>{izTab=d.t;view()},
+    lesson:()=>{const back=view;startTut([d.t],()=>show(back),true)},izt:()=>{izTab=d.t;view()},beast:()=>{beastId=d.id;view();const a=$('.beastart');a&&a.scrollIntoView()},beastback:()=>{const id=beastId;beastId=null;view();const c=$(`[data-act="beast"][data-id="${id}"]`);c&&c.scrollIntoView({block:'center'})},
     hit,sel:()=>sel(+d.i),scroll:useScroll,potion:usePotion,buy:()=>buy(d.id),next:()=>{run.step++;enterRoom()},
     sol:()=>{if(run&&run.lastWrong)$('#sol').innerHTML=solHTML(run.lastWrong)},
     flee:()=>{if(!busy&&confirm(`Отступить в кремль? Добыча похода (${run.gold} зол.) пропадёт, опыт останется.`))endRun(false,'flee')},

@@ -14,7 +14,7 @@ const today=()=>dkey(gday()),yday=()=>dkey(gday()-1);
 
 // ---------- сохранение и прогресс ----------
 const DEF={xp:0,lvl:1,gold:0,sword:0,armor:0,potions:2,scrolls:3,stats:{},days:{},streak:0,lastDay:'',runs:0,wins:0,bestCombo:0,beaten:[],tut:{},met:{},intro:false,
-  name:'',born:0,day:0,hp:null,sat:100,vig:100,spirit:100,water:0,perun:0,far:-1,fallen:[],remind:'19:00',pz:null,wonDay:''};
+  name:'',born:0,day:0,hp:null,sat:100,vig:100,spirit:100,water:0,perun:0,far:-1,fallen:[],remind:'19:00',pz:null,wonDay:'',ob:null};
 const fresh=()=>JSON.parse(JSON.stringify(DEF));
 function load(){let o={};try{o=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}const s=Object.assign(fresh(),o);delete s.unlocked;return s}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -46,8 +46,9 @@ const SURN=['Лыков','Кузьмин','Ершов','Буслаев','Гус�
 // новые поля (и старые сохранения) дополняем полными значениями
 function fill(){if(!S.name)S.name=pick(NAMES)+' '+pick(SURN);if(S.hp==null)S.hp=maxHP();S.hp=Math.min(S.hp,maxHP());if(!S.day)S.day=gday();
   if(!S.born){const k=Object.keys(S.days).sort()[0];S.born=k?Math.min(gday(),Math.round(Date.parse(k+'T00:00Z')/864e5)):gday()}
-  if(S.far<0&&S.runs)S.far=ZONES.reduce((a,_,i)=>zOpen(i)?i:a,0);pzFill()}  // царские приказы — js/prikazy.js
-function reborn(){S=Object.assign(fresh(),{fallen:S.fallen,remind:S.remind});fill();save();MB=null}
+  if(S.far<0&&S.runs)S.far=ZONES.reduce((a,_,i)=>zOpen(i)?i:a,0);pzFill();obFill()}  // царские приказы — js/prikazy.js, обучение — js/onboarding.js
+// обучение переживает смерть: новому стрельцу — короткий пролог, остальное не повторяется
+function reborn(){S=Object.assign(fresh(),{fallen:S.fallen,remind:S.remind,ob:obReborn(S.ob)});fill();save();MB=null;mapSt.sel=null}
 function vigDown(n){const was=S.vig;S.vig=Math.max(0,S.vig-n);if(was>=50&&S.vig<50)toast('Стрелец устал и бьёт слабее. Баня поможет')}
 function fright(n){const was=S.spirit;S.spirit=Math.max(0,S.spirit-n);if(was&&!S.spirit)toast('Дух сломлен: нечисть бьёт сильнее. Церковь или капище помогут')}
 // убыль сытости за прошедшие рассветы: при загрузке и раз в минуту, если вкладка открыта в 4:00
@@ -77,48 +78,52 @@ document.fonts&&document.fonts.ready.then(paintAll);
 
 // ---------- шапка: лицо стрельца (js/faces.js), четыре нужды, предупреждения ----------
 const NEEDS=[['sat','Сытость'],['hp','Здоровье'],['vig','Бодрость'],['spirit','Дух']];
-function hdr(){const mx=maxHP(),bar=([k,n])=>{const v=k==='hp'?S.hp:S[k],m=k==='hp'?mx:100,low=v/m<.25;
-    return`<span class="px small ${low?'bad':''}">${n}</span><div class="bar ${k}"><i style="width:${v/m*100}%"></i></div><span class="small ${low?'bad':'muted'}">${v}${k==='hp'?'/'+mx:''}</span>`};
+// предупреждение стоит рядом со своей шкалой — шапка не растёт в высоту
+function hdr(){const mx=maxHP(),w=needWarn(),bar=([k,n])=>{const v=k==='hp'?S.hp:S[k],m=k==='hp'?mx:100,low=v/m<.25;
+    return`<span class="px small ${low?'bad':''}">${n}</span><div class="bar ${k}"><i style="width:${v/m*100}%"></i></div><span class="small ${low?'bad':'muted'}">${v}${k==='hp'?'/'+mx:''}</span><span class="small nw">${w[k]||''}</span>`};
   return`<div class="panel hdr"><div class="hrow">${faceBox('strelets_face')}
-    <div class="who"><h1>Стрелец и нечисть</h1><div class="px small gold">${S.name}${rankName()?' · '+rankName():''} · день ${gday()-S.born+1}</div>${statLine()}</div>
-    <div class="needs">${NEEDS.map(bar).join('')}</div></div>${warns()}</div>`}
-function warns(){const w=[],d=daysLeft(),mx=maxHP();
-  if(d<=1)w.push('<span class="bad">Стрелец голодает: если не поест, умрёт в 4 утра.</span> Корчма — в кремле.');
-  else if(d===2)w.push('<span class="gold">Стрелец проголодался: без еды проживёт ещё 2 дня.</span>');
-  if(S.hp<mx*.3)w.push('<span class="bad">Тяжело ранен.</span> Само не заживёт — к знахарке.');
-  if(tired()<1)w.push(`Устал: урон ×${tired().toFixed(2)}. Баня поможет.`);
-  if(!S.spirit)w.push('<span class="bad">Дух сломлен: нечисть бьёт в полтора раза сильнее.</span> Церковь или капище.');
-  if(SHIFT)w.push(`<span class="bad">Время сдвинуто на ${SHIFT/864e5} дн. (проверка)</span>`);
-  return w.length?`<div class="warn">${w.map(x=>`<div>${x}</div>`).join('')}</div>`:''}
+    <div class="who"><h1>Стрелец и нечисть</h1><div class="px small gold">${S.name}${rankName()?' · '+rankName():''} · день ${gday()-S.born+1}</div>${statLine()}${SHIFT?`<div class="small bad">Время сдвинуто на ${SHIFT/864e5} дн. (проверка)</div>`:''}</div>
+    <div class="needs">${NEEDS.map(bar).join('')}</div></div>
+    <button class="gear" data-act="gear" title="Напоминание в календаре">⚙</button><div class="gearm" hidden><p class="small" style="margin:0 0 8px">Стрельца надо навещать каждый день. Напоминание в календаре — ежедневно в</p>
+    <div class="row"><input type="time" id="remind" class="tm" value="${S.remind}"><button data-act="ics">Добавить в календарь</button></div></div></div>`}
+function needWarn(){const w={},d=daysLeft();
+  if(d<=1)w.sat='<span class="bad">умрёт в 4 утра — в корчму!</span>';else if(d===2)w.sat='<span class="gold">проживёт ещё 2 дня</span>';
+  if(S.hp<maxHP()*.3)w.hp='<span class="bad">тяжело ранен — к знахарке</span>';
+  if(tired()<1)w.vig=`устал, урон ×${tired().toFixed(2)} — в баню`;
+  if(!S.spirit)w.spirit='<span class="bad">дух сломлен — в церковь</span>';return w}
 function statLine(){const dd=S.days[today()]||{ok:0,t:0};
   return`<div class="small muted">Ур. ${S.lvl} · опыт ${S.xp}/${need(S.lvl)} · <span class="gold">${S.gold} зол.</span> · зелья ${S.potions} · свитки ${S.scrolls}${S.water?' · <span class="ok">живая вода</span>':''}${S.perun?' · <span class="gold">Перун благоволит</span>':''}<br>
   серия <span class="gold">${streak()} дн.</span> · сегодня ${dd.ok} верно, ${Math.round(dd.t/60)} мин</div>`}
-const noteHTML=()=>note?`<div class="panel"><p style="margin:0">Пока тебя не было, ${pl(note.n,'прошёл','прошло','прошло')} ${note.n} ${pl(note.n,'день','дня','дней')}. Сытость: ${note.was} → ${note.sat}.${note.saved?' <span class="ok">Стрелец умирал от голода, но его спасла живая вода. Её больше нет.</span>':''}</p></div>`:'';
+// «пока тебя не было» — долгим тостом поверх экрана, чтобы не сдвигать карту
+function noteToast(){if(!note)return;const n=note;note=null;
+  toast(`Пока тебя не было, ${pl(n.n,'прошёл','прошло','прошло')} ${n.n} ${pl(n.n,'день','дня','дней')}. Сытость: ${n.was} → ${n.sat}.${n.saved?' Стрелец умирал от голода, но его спасла живая вода. Её больше нет.':''}`,9000)}
 
 // ---------- экраны кремля ----------
 function show(fn){view=fn;fn();window.scrollTo(0,0)}
-const mapState=()=>({hover:mapSt.hover,sel:mapSt.sel,open:zOpen});
-function mapScreen(){if(!MB&&ATL.complete)buildMap(zOpen);
-  app.innerHTML=`${hdr()}${noteHTML()}
-  <div class="panel mapwrap"><canvas id="map" width="${MAP.W}" height="${MAP.H}"></canvas>${faceBox('tsar')}</div><div id="tsarTask">${tsarPanel()}</div><div id="info"></div>
-  <div class="panel"><div class="px small muted" style="margin-bottom:8px">Кремль</div><div class="row">${BLD.map(b=>`<button data-act="bld" data-id="${b.id}">${b.name}</button>`).join('')}</div></div>
-  <div class="panel row"><span class="small" style="flex:1;min-width:220px">Стрельца надо навещать каждый день. Напоминание в календаре — ежедневно в</span><input type="time" id="remind" class="tm" value="${S.remind}"><button data-act="ics">Добавить в календарь</button></div>`;
-  note=null;$('#remind').onchange=e=>{S.remind=e.target.value||'19:00';save()};
-  document.querySelectorAll('.hdr canvas[data-cr]').forEach(paintCr);const m=$('#map');if(MB)paintMap(m,mapState());
+const mapState=()=>({hover:mapSt.hover,sel:mapSt.sel,hl:mapSt.hl,open:zOpen});
+// куда идти: первая открытая зона, где хозяин ещё не побеждён (её панель видна сразу)
+const frontier=()=>{const k=ZONES.findIndex((_,zi)=>zOpen(zi)&&!zBeaten(zi));return k<0?ZONES.reduce((a,_,i)=>zOpen(i)?i:a,0):k};
+// на компьютере карта вписывается в окно по высоте и ширине, рядом — панель зоны; на телефоне — во всю ширину, панель ниже
+const DESK=()=>innerWidth>=900;
+function fitMap(){const b=$('.mapbox'),c=$('#map');if(!b||!c)return;if(!DESK()){c.style.width=c.style.height='';return}
+  const k=Math.min((b.clientWidth-20)/MAP.W,(b.clientHeight-20)/MAP.H);c.style.width=Math.floor(MAP.W*k)+'px';c.style.height=Math.floor(MAP.H*k)+'px'}
+function mapScreen(){if(!MB&&ATL.complete)buildMap(zOpen);noteToast();if(!mapSt.sel)mapSt.sel={type:'zone',zi:frontier()};
+  app.innerHTML=`${hdr()}<div class="mapscr fill"><div class="mapbox"><div class="panel mapwrap"><canvas id="map" width="${MAP.W}" height="${MAP.H}"></canvas>${faceBox('tsar')}</div></div><div id="info" class="side"></div></div>`;
+  document.querySelectorAll('.hdr canvas[data-cr]').forEach(paintCr);const m=$('#map');fitMap();if(MB)paintMap(m,mapState());
   m.onmousemove=e=>{if(!MB)return;const p=mapPick(m,e);if(JSON.stringify(p)!==JSON.stringify(mapSt.hover)){mapSt.hover=p;m.style.cursor=p?'pointer':'default';paintMap(m,mapState())}};
   m.onmouseleave=()=>{mapSt.hover=null;if(MB)paintMap(m,mapState())};
   m.onclick=e=>{if(!MB)return;const p=mapPick(m,e);if(!p)return;if(p.type==='bld')return show(()=>building(p.id));mapSt.sel=p;paintMap(m,mapState());zoneInfo(p.zi,true)};
-  if(mapSt.sel)zoneInfo(mapSt.sel.zi)}
+  zoneInfo(mapSt.sel.zi)}
 function zoneInfo(zi,scroll){const Z=ZONES[zi],boss=CR[Z.boss],beat=zBeaten(zi),mast=zMastered(zi);let body;
   if(!zOpen(zi))body=`<p class="bad">Путь закрыт. Сначала одолей хозяина зоны «${ZONES[zi-1].name}».</p>`;
   else{const tl=Z.topics.map(t=>{const q=S.stats[t],a=q?acc(q):0,ok=q?q.ok:0;
-      return`<div class="topic"><span class="px small" style="width:200px">${T[TI[t]].name}</span><div class="bar m"><i style="width:${Math.min(1,ok/8)*Math.min(1,a/.7)*100}%"></i></div><span class="small muted">${Math.min(ok,8)}/8 верно · ${q&&q.r.length?Math.round(a*100)+'%':'—'}</span></div>`}).join('');
+      return`<div class="topic2"><div class="px small">${T[TI[t]].name}</div><div class="row" style="flex-wrap:nowrap;gap:8px"><div class="bar m" style="flex:1"><i style="width:${Math.min(1,ok/8)*Math.min(1,a/.7)*100}%"></i></div><span class="small muted">${Math.min(ok,8)}/8 верно · ${q&&q.r.length?Math.round(a*100)+'%':'—'}</span></div></div>`}).join('');
     const bl=beat?`${boss.n} повержен. Можно вернуться за золотом и опытом.`:mast?`${boss.n} ждёт тебя в конце похода.`:`${boss.n} пока не показывается: освой темы зоны (8 верных и 70% точности по каждой).`;
-    body=`<div class="row" style="align-items:flex-end;gap:14px;margin-bottom:8px">${Z.mobs.map(id=>`<div class="c">${cr(id,64,S.met[id]!==undefined?'':'sil')}<div class="small muted">${S.met[id]!==undefined?CR[id].n:'???'}</div></div>`).join('')}
-      <div class="c">${cr(Z.boss,64,S.met[Z.boss]!==undefined?'':'sil')}<div class="small gold">${S.met[Z.boss]!==undefined?boss.n:'Хозяин'}</div></div></div>${tl}<p class="small" style="margin-top:8px">${bl}</p>
+    body=`<div class="zmobs">${[...Z.mobs,Z.boss].map(id=>{const m=S.met[id]!==undefined,b=id===Z.boss;return`<div class="c">${cr(id,64,m?'':'sil')}<div class="small ${b?'gold':'muted'}">${m?CR[id].n:b?'Хозяин':'???'}</div></div>`}).join('')}</div>
+      ${tl}<p class="small" style="margin:8px 0 10px">${bl}</p>
       <div class="row"><button class="main" data-act="go" data-zi="${zi}">В поход</button>${Z.topics.filter(t=>S.tut[t]).map(t=>`<button data-act="lesson" data-t="${t}">Урок: ${T[TI[t]].name}</button>`).join('')}</div>`}
-  $('#info').innerHTML=`<div class="panel"><h2>${Z.name}</h2><p class="muted">${Z.desc}</p>${body}</div>`;
-  document.querySelectorAll('#info canvas[data-cr]').forEach(paintCr);if(scroll)$('#info').scrollIntoView({behavior:'smooth',block:'nearest'})}
+  $('#info').innerHTML=`<div class="panel zinfo"><h2>${Z.name}</h2><p class="muted small">${Z.desc}</p>${body}</div>`;
+  document.querySelectorAll('#info canvas[data-cr]').forEach(paintCr);if(scroll&&!DESK())$('#info').scrollIntoView({behavior:'smooth',block:'nearest'})}
 // товары и услуги зданий: c — цена, ok — можно ли сейчас, act — что делает. Цены и расчёт — в docs/PROJECT.md, раздел 5
 const SHOP={
   shchi:{name:'Щи да каша',d:'+35 сытости — еда на день',v:'Заказать',c:()=>20,ok:()=>S.sat<100,act:()=>S.sat=Math.min(100,S.sat+35)},
@@ -143,53 +148,61 @@ const BSAY={
 const shopHTML=ids=>`<div class="panel"><p class="px small gold">${S.gold} золота</p><div class="shop">${ids.map(id=>{const it=SHOP[id],c=it.c(),ok=!it.ok||it.ok(),h=it.have&&it.have();
   return`<div class="item"><span class="px small">${it.name}</span><span class="small muted">${it.d}</span>${h?`<span class="small">${h}</span>`:''}<button data-act="buy" data-id="${id}" ${!ok||S.gold<c?'disabled':''}>${ok?it.v+' · '+c:it.no||'Не нужно'}</button></div>`}).join('')}</div></div>`;
 function buy(id){const it=SHOP[id],c=it.c();if(S.gold<c||it.ok&&!it.ok())return;S.gold-=c;it.act();save();toast(`${it.name} · −${c} зол.`);view&&view()}
-function building(id){const b=BLD.find(x=>x.id===id);let body;
-  if(BSHOP[id])body=(BSAY[id]?`<div class="panel story"><p style="margin:0">${BSAY[id]}</p></div>`:'')+shopHTML(BSHOP[id])+(id==='kapishche'?beastHTML():'');
+// экран здания: шапка, название с описанием и словом хозяина, ниже лавка (на капище — лавка и бестиарий рядом)
+function building(id){const b=BLD.find(x=>x.id===id);let body;obVisit(id);
+  if(BSHOP[id])body=id!=='kapishche'?shopHTML(BSHOP[id]):beastId?beastHTML():`<div class="kapcols">${shopHTML(BSHOP[id])}${beastHTML()}</div>`;
   else if(id==='izba')body=izbaHTML();
   else if(id==='palaty')body=palatyHTML();
   else body='<div class="panel"><p class="muted">Скоро здесь что-то будет.</p></div>';
-  app.innerHTML=`${hdr()}<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${b.name}</h1><button data-act="map">← В кремль</button></div><p class="muted" style="margin-top:10px">${b.desc}</p></div>${body}`;paintAll()}
+  app.innerHTML=`${hdr()}<div class="panel btitle"><div class="row" style="flex-wrap:nowrap;align-items:center"><h1 style="margin:0">${b.name}</h1><span class="muted small" style="flex:1">${b.desc}</span><button data-act="map">← В кремль</button></div>
+    ${BSAY[id]?`<p style="margin:8px 0 0">${BSAY[id]}</p>`:''}</div>${body}`;paintAll()}
 // ---------- бестиарий на капище: волхв знает всю нечисть; статьи — js/bestiary.js ----------
-function beastHTML(){const zn=id=>ZONES.find(z=>z.mobs.includes(id)||z.boss===id);
-  if(beastId){const id=beastId,c=CR[id],B=BEAST[id]||{},z=zn(id),met=S.met[id]!==undefined;
-    return`<div class="panel beastart"><button data-act="beastback">← Ко всей нечисти</button>
-      <div class="row" style="align-items:flex-start;margin-top:12px"><div>${cr(id,128,met?'':'sil')}</div><div style="flex:1;min-width:240px">
-      <h2 style="margin-bottom:4px">${c.n}</h2><p class="small muted" style="margin-top:0">${z.name}${c.boss?' · хозяин зоны':''} · ${met?'побеждено: '+S.met[id]:'ещё не встречалась'}</p>
-      <p><i>${c.lore}</i></p>
+// вся нечисть — вкладками по зонам; статья — вместо списка
+let bzTab=0;
+function beastHTML(){const zn=id=>ZONES.findIndex(z=>z.mobs.includes(id)||z.boss===id);
+  if(beastId){const id=beastId,c=CR[id],B=BEAST[id]||{},z=ZONES[zn(id)],met=S.met[id]!==undefined;
+    return`<div class="panel beastart"><div class="row"><button data-act="beastback">← Ко всей нечисти</button><span class="small muted">${z.name}</span></div>
+      <div class="bart"><div class="baside">${cr(id,128,met?'':'sil')}
+      <h2 style="margin:8px 0 4px">${c.n}</h2><p class="small muted" style="margin-top:0">${c.boss?'Хозяин зоны · ':''}${met?'побеждено: '+S.met[id]:'ещё не встречалась'}</p>
+      <p><i>${c.lore}</i></p></div><div class="bcols">
       <h3>Кто такой</h3><p>${B.who}</p><h3>Откуда берётся</h3><p>${B.why}</p><h3>Чем занят</h3><p>${B.does}</p>
       <h3>В классике</h3>${B.lit&&B.lit.length?`<ul>${B.lit.map(t=>`<li>${t}</li>`).join('')}</ul>`:'<p class="muted">В классической литературе почти не встречается — ищи в книгах ниже.</p>'}
       <h3>Почитать о мифах</h3><ul>${(B.books||[]).map(k=>`<li>${BK[k]}</li>`).join('')}</ul></div></div></div>`}
-  return`<div class="panel"><h2>Бестиарий</h2><p class="muted">Волхв ведёт летопись нечисти: про каждую тварь знает, кто она, откуда берётся и в каких книгах о ней прочесть. Нажми на любую.</p>
-    ${ZONES.map(z=>`<h3>${z.name}</h3><div class="beast">${[...z.mobs,z.boss].map(id=>{const met=S.met[id]!==undefined;
-      return`<div data-act="beast" data-id="${id}">${cr(id,64,met?'':'sil')}<div><div class="px small ${CR[id].boss?'gold':''}">${CR[id].n}</div><div class="small">${CR[id].lore}</div><div class="small muted">${met?'Побеждено: '+S.met[id]:'Ещё не встречалась'}</div></div></div>`}).join('')}</div>`).join('')}</div>`}
+  const z=ZONES[bzTab];
+  return`<div class="panel beasts"><div class="row" style="margin-bottom:8px"><h2 style="margin:0">Бестиарий</h2><span class="small muted">Волхв знает про каждую тварь, кто она и в каких книгах о ней прочесть. Нажми на любую.</span></div>
+    <div class="row tabs">${ZONES.map((q,i)=>`<button data-act="bzt" data-z="${i}" class="${i===bzTab?'on':''}">${q.short}</button>`).join('')}</div>
+    <div class="beast">${[...z.mobs,z.boss].map(id=>{const met=S.met[id]!==undefined;
+      return`<div data-act="beast" data-id="${id}">${cr(id,64,met?'':'sil')}<div><div class="px small ${CR[id].boss?'gold':''}">${CR[id].n}</div><div class="small">${CR[id].lore}</div><div class="small muted">${met?'Побеждено: '+S.met[id]:'Ещё не встречалась'}</div></div></div>`}).join('')}</div></div>`}
+// изба-читальня: уроки, летопись, Книга павших (страницами, последнее уравнение — во всплывающем окне)
+let izPage=0;const IZ_PER=5;
 function izbaHTML(){if(izTab==='beast')izTab='lessons';const tabs=[['lessons','Уроки'],['stats','Летопись'],['fallen','Книга павших']].map(([k,n])=>`<button data-act="izt" data-t="${k}" class="${izTab===k?'on':''}">${n}</button>`).join('');let b='';
   if(izTab==='lessons'){const ts=ZONES.filter((_,zi)=>zOpen(zi)).flatMap(z=>z.topics);
     b=`<div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${cr('kot',128)}</div><div class="bubble"><p>Мур. Какой урок повторим, стрелец?</p><div class="row">${ts.map(t=>`<button data-act="lesson" data-t="${t}">${T[TI[t]].name}</button>`).join('')}</div></div></div>`}
-  else if(izTab==='fallen')b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${S.fallen.length?`<div class="tscroll"><table><tr><th>Стрелец</th><th>Чин</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Последнее уравнение</th><th>Дата</th></tr>
-      ${S.fallen.map(f=>`<tr><td>${f.name}</td><td>${f.rank||'—'}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${f.miss?`<details><summary>${Array.isArray(f.miss.q)?f.miss.q.join('; '):f.miss.q}</summary><div class="small">Твой ответ: <span class="bad">${esc(f.miss.in)}</span> · верно: <span class="ok">${f.miss.a}</span></div><ol class="small">${f.miss.s.map(stepLi).join('')}</ol></details>`:'—'}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`;
+  else if(izTab==='fallen'){const F=S.fallen,pages=Math.max(1,Math.ceil(F.length/IZ_PER));izPage=Math.max(0,Math.min(izPage,pages-1));const pg=F.slice(izPage*IZ_PER,(izPage+1)*IZ_PER);
+    b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${F.length?`<div class="tscroll"><table class="tight"><tr><th>Стрелец</th><th>Чин</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Последнее уравнение</th><th>Дата</th></tr>
+      ${pg.map((f,i)=>`<tr><td>${f.name}</td><td>${f.rank||'—'}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${f.miss?`<button class="eqbtn" data-act="miss" data-i="${izPage*IZ_PER+i}">${esc(Array.isArray(f.miss.q)?f.miss.q.join('; '):f.miss.q)}</button>`:'—'}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>
+      ${pages>1?`<div class="row" style="margin-top:10px"><button data-act="izp" data-d="-1" ${izPage?'':'disabled'}>← Раньше</button><span class="small muted">Страница ${izPage+1} из ${pages}</span><button data-act="izp" data-d="1" ${izPage<pages-1?'':'disabled'}>Дальше →</button></div>`:''}`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`}
   else{const days=[...Array(7)].map((_,i)=>dkey(gday()-(6-i)));
-    b=`<table><tr><th>Тема</th><th>Верно</th><th>Точность*</th><th>Ср. время</th><th>Рекорд</th><th>Норма</th></tr>${T.map(t=>{const q=S.stats[t.id];if(!q)return'';
+    b=`<div class="izstats"><div><table class="tight"><tr><th>Тема</th><th>Верно</th><th>Точность*</th><th>Ср. время</th><th>Рекорд</th><th>Норма</th></tr>${T.map(t=>{const q=S.stats[t.id];if(!q)return'';
       return`<tr><td>${t.name}</td><td>${q.ok}/${q.n}</td><td>${q.r.length?Math.round(acc(q)*100)+'%':'—'}</td><td>${q.ok?Math.round(q.t/q.ok)+' с':'—'}</td><td>${q.best?Math.round(q.best)+' с':'—'}</td><td>${t.par} с</td></tr>`}).join('')}</table>
-      <p class="small muted">* по последним 10 попыткам. Слабые темы попадаются чаще.</p><h2 style="margin-top:16px">Последние 7 дней</h2>
-      ${days.map(d=>{const x=S.days[d];return`<div class="topic"><span class="small" style="width:60px">${d.slice(5)}</span><div class="bar xp"><i style="width:${x?Math.min(100,x.ok*3):0}%"></i></div><span class="small muted" style="width:150px">${x?x.ok+' верно · '+Math.round(x.t/60)+' мин':'—'}</span></div>`}).join('')}
+      <p class="small muted">* по последним 10 попыткам. Слабые темы попадаются чаще.</p></div>
+      <div><h2>Последние 7 дней</h2>${days.map(d=>{const x=S.days[d];return`<div class="topic"><span class="small" style="width:60px">${d.slice(5)}</span><div class="bar xp"><i style="width:${x?Math.min(100,x.ok*3):0}%"></i></div><span class="small muted" style="width:150px">${x?x.ok+' верно · '+Math.round(x.t/60)+' мин':'—'}</span></div>`}).join('')}
       <p class="small muted">Походов: ${S.runs} · побед: ${S.wins} · лучшее комбо: ${S.bestCombo}</p>
-      <div class="row">${ZONES.some((_,zi)=>!zBeaten(zi))?'<button data-act="skipzone">Открыть следующую зону досрочно</button>':''}<button data-act="reset">Сбросить прогресс</button></div>`}
-  return`<div class="panel"><div class="row" style="margin-bottom:14px">${tabs}</div>${b}</div>`}
-function introView(){const lead=S.fallen.length?`Прежний стрелец, ${S.fallen[0].name}, не вернулся. Теперь служба на тебе, ${S.name}.`:`Зовут тебя ${S.name}.`;
-  app.innerHTML=`<div class="panel story"><h1>Пойди туда — не знаю куда</h1><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${cr('strelets',128)}</div>
-  <div style="margin-left:16px"><p class="gold">${lead}</p>${INTRO.map(p=>`<p>${p}</p>`).join('')}
-  <p class="muted">Навещай стрельца каждый день. Корми в корчме: без еды он проживёт три дня. Раны лечит знахарка, усталость снимает баня, страх — церковь и капище. Погибнет — всё начнётся сначала, останется только имя в Книге павших.</p></div></div>
-  <div class="row c" style="margin-top:12px"><button class="main" data-act="intro">Выйти к воротам</button></div></div>`;paintAll()}
+      <div class="row">${ZONES.some((_,zi)=>!zBeaten(zi))?'<button data-act="skipzone">Открыть следующую зону досрочно</button>':''}<button data-act="reset">Сбросить прогресс</button></div></div></div>`}
+  return`<div class="panel"><div class="row tabs" style="margin-bottom:14px">${tabs}</div>${b}</div>`}
+// всплывающее окно поверх экрана: закрывается кнопкой или щелчком по тёмному фону
+function modal(h){const d=document.createElement('div');d.className='modal';d.innerHTML=`<div class="panel">${h}<div class="row c"><button class="main" data-act="modalx">Закрыть</button></div></div>`;
+  d.onclick=e=>{if(e.target===d||e.target.closest('[data-act="modalx"]'))d.remove()};document.body.appendChild(d)}
 // последнее уравнение павшего: что было, что ответил, как надо
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const missHTML=m=>`<div class="sol" style="text-align:left;margin:12px 0"><div class="small muted">Последнее уравнение</div><div class="eq">${eqHTML(m.q)}</div>
   <p style="margin:6px 0">Твой ответ: <b class="bad">${esc(m.in)}</b> · верно: <b class="ok">${m.a}</b></p><ol>${m.s.map(stepLi).join('')}</ol></div>`;
 function deadView(f){const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`,hunger=f.how==='hunger';
-  app.innerHTML=`<div class="panel c story"><h1>${hunger?'Умер от голода':'Пал в бою'}</h1><div class="row c">${cr('strelets',128,'sil','r')}</div>
-  <p>Стрелец ${f.name} ${hunger?'не дождался тебя и умер от голода':`пал в бою: ${f.cause}`}. Кот Учёный вписал его имя в Книгу павших.</p>${f.miss?missHTML(f.miss):''}
+  app.innerHTML=`<div class="panel c story dead${f.miss?' two':''}"><div><h1>${hunger?'Умер от голода':'Пал в бою'}</h1><div class="row c">${cr('strelets',128,'sil','r')}</div>
+  <p>Стрелец ${f.name} ${hunger?'не дождался тебя и умер от голода':`пал в бою: ${f.cause}`}. Кот Учёный вписал его имя в Книгу павших.</p>
   <table>${row('Прожил',f.days+' '+pl(f.days,'день','дня','дней'))}${row('Решил задач',f.solved)}${row('Уровень',f.lvl)}${f.rank?row('Чин',f.rank):''}${row('Дошёл до',f.zone||'не выходил за ворота')}${row('Дата смерти',ru(f.date))}</table>
   <p class="muted" style="margin-top:12px">Всё нажитое пропало: уровень, золото, вещи, открытые пути, освоенные темы, чин и царские приказы.</p>
-  <div class="row c"><button class="main" data-act="newhero">Новый стрелец</button></div></div>`;paintAll()}
+  <div class="row c"><button class="main" data-act="newhero">Новый стрелец</button></div></div>${f.miss?`<div>${missHTML(f.miss)}</div>`:''}</div>`;paintAll()}
 
 // ---------- напоминание: файл календаря с ежедневным событием ----------
 function fold(s){const te=new TextEncoder();let out='',cur='',n=0,lim=75;for(const ch of s){const b=te.encode(ch).length;if(n+b>lim){out+=cur+'\r\n ';cur='';n=0;lim=74}cur+=ch;n+=b}return out+cur}
@@ -211,9 +224,9 @@ function tutView(){const t=tut.q[tut.i],L=TUT[t],tp=T[TI[t]];let b;
   if(tut.stage==='rules')b=`<h2>${tp.name}</h2><ul>${L.rules.map(r=>`<li>${r}</li>`).join('')}</ul><div class="row"><button class="main" data-act="tnext">Покажи пример</button></div>`;
   else if(tut.stage==='ex')b=`<p class="muted small">Пример</p><div class="eq">${eqHTML(L.ex.q)}</div><ol class="steps">${L.ex.s.slice(0,tut.step).map(stepLi).join('')}</ol>
     <div class="row">${tut.step<L.ex.s.length?'<button class="main" data-act="tstep">Следующий шаг</button>':'<button class="main" data-act="tnext">Теперь сам</button>'}</div>`;
-  else{const e=tut.cur;b=`<p class="muted small">Тренировка ${tut.done+1} из 3 · без урона</p><div class="eq">${eqHTML(e.q)}</div>
+  else{const e=tut.cur;b=`<div class="btcols"><div class="btmain"><p class="muted small">Тренировка ${tut.done+1} из 3 · без урона</p><div class="eq">${eqHTML(e.q)}</div>
     <div class="row" style="flex-wrap:nowrap"><input id="ans" autocomplete="off" spellcheck="false" placeholder="${PH[e.fmt]}"><button class="main" data-act="tcheck">Проверить</button></div>
-    <div class="small muted" style="margin-top:6px">${FH[e.fmt]}</div><div class="msg" id="msg"></div><div id="sol"></div>`}
+    <div class="small muted" style="margin-top:6px">${FH[e.fmt]}</div><div class="msg" id="msg"></div></div><div id="sol"></div></div>`}
   app.innerHTML=`<div class="panel tut"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${cr('kot',128)}<div class="px small c gold">Кот Учёный</div></div><div class="bubble">${b}</div></div>
     <div class="row" style="margin-top:12px"><span class="small muted">Урок ${tut.i+1} из ${tut.q.length}</span><span style="flex:1"></span><button data-act="tskip">${tut.lib?'Закрыть урок':'Знаю, пропустить'}</button></div></div>`;
   paintAll();const a=$('#ans');if(a){a.focus();a.onkeydown=ev=>{if(ev.key==='Enter')tCheck()}}}
@@ -249,18 +262,18 @@ function enterRoom(){view=null;const p=PLAN[run.step],Z=ZONES[run.zi];
   fright(p==='boss'?10:5);  // в лесу растёт страх: каждая поляна −5 духа, хозяин или вожак −10
   save();run.tg=0;battle();sel(0)}
 const stageName=()=>{const p=PLAN[run.step];return p==='boss'?'<span class="bad">Хозяин</span>':'Поляна '+PLAN.slice(0,run.step+1).filter(x=>typeof x==='number').length+'/4'};
-function battle(){
-  app.innerHTML=`<div class="panel row" id="hud"></div>
-  <div class="panel arena" id="arena"><canvas id="arenaBg"></canvas><div id="hero">${cr('strelets',128,'','r')}</div>
-    <div class="mons">${run.mons.map((m,k)=>`<div class="mon" id="m${k}" data-act="sel" data-i="${k}"><div class="mname px">${m.name}</div>${cr(m.id,m.boss?192:128)}<div class="bar m"><i></i></div></div>`).join('')}</div></div>
-  <div class="panel">
-    <div class="px small muted" id="tinfo"></div><div class="eq" id="eq"></div><div class="hintbox" id="hint"></div>
+// бой: сверху сводка, посередине арена (растёт с высотой окна, в высоком окне и спрайты крупнее), снизу уравнение; решение после промаха — справа от него
+function battle(){const big=DESK()&&innerHeight>=880,ms=big?192:128,bs=big?256:192,sol='<div id="sol"></div>';
+  app.innerHTML=`<div class="btwrap fill"><div class="panel row" id="hud"></div>
+  <div class="panel arena" id="arena"><canvas id="arenaBg"></canvas><div id="hero">${cr('strelets',ms,'','r')}</div><div class="say" data-who="hero"></div>${DESK()?sol:''}
+    <div class="mons">${run.mons.map((m,k)=>`<div class="mon" id="m${k}" data-act="sel" data-i="${k}"><div class="mname px">${m.name}</div>${cr(m.id,m.boss?bs:ms)}<div class="bar m"><i></i></div></div>`).join('')}</div></div>
+  <div class="panel btq"><div class="btcols"><div class="btmain">
+    <div class="row"><span class="px small muted" id="tinfo" style="flex:1"></span><span id="timer" class="px small"></span></div><div class="eq" id="eq"></div><div class="hintbox" id="hint"></div>
     <div class="row" style="flex-wrap:nowrap;margin-top:8px"><input id="ans" autocomplete="off" spellcheck="false"><button class="main" data-act="hit">Выстрел</button></div>
-    <div class="small muted" id="fh" style="margin-top:6px"></div>
-    <div class="row" style="margin-top:12px"><span id="timer" class="px small"></span><span style="flex:1"></span><button data-act="scroll" id="bs"></button><button data-act="potion" id="bp"></button></div>
-    <div class="msg" id="msg"></div><div id="sol"></div>
-  </div>`;
-  run.mons.forEach(m=>['idle','attack','spawn'].forEach(k=>strip(m.id,k)));
+    <div class="row" style="margin-top:8px"><span class="small muted" id="fh" style="flex:1;min-width:200px"></span><button data-act="scroll" id="bs"></button><button data-act="potion" id="bp"></button></div>
+    <div class="msg" id="msg"></div></div>${DESK()?'':sol}</div>
+  </div></div>`;
+  run.mons.forEach(m=>['idle','attack','spawn'].forEach(k=>strip(m.id,k)));if(window.ResizeObserver)new ResizeObserver(solFit).observe($('#arena'));
   paintAll();updHUD();run.mons.forEach((_,k)=>{updMon(k);spawnFx($('#m'+k+' canvas'),k*180)});
   $('#ans').addEventListener('keydown',e=>{if(e.key==='Enter')hit()});
   clearInterval(tick);tick=setInterval(updTimer,250)}
@@ -309,7 +322,7 @@ function campView(){app.innerHTML=`<div class="panel c"><h1>Привал</h1><di
   <div class="row c"><button data-act="flee">Отступить в кремль</button><button class="main" data-act="next">Идти дальше</button></div></div>`;paintAll()}
 // how: 'flee' — отступил, 'water' — спасла живая вода. Добыча похода достаётся только победителю
 function endRun(win,how){busy=0;clearInterval(tick);const r=run;run=null;S.runs++;if(win){S.wins++;r.gold+=25;S.gold+=r.gold;S.wonDay=today()}  // день победы: в палатах платят жалованье
-  S.bestCombo=Math.max(S.bestCombo,r.maxc);if(S.lastDay!==today()){S.streak=S.lastDay===yday()?S.streak+1:1;S.lastDay=today()}save();if(r.newZone)MB=null;
+  S.bestCombo=Math.max(S.bestCombo,r.maxc);if(S.lastDay!==today()){S.streak=S.lastDay===yday()?S.streak+1:1;S.lastDay=today()}save();if(r.newZone){MB=null;mapSt.sel=null}  // на карте сразу панель новой зоны
   const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`,water=how==='water';
   show(()=>{app.innerHTML=`<div class="panel c"><h1>${win?'С добычей домой':water?'Живая вода':'Пришлось отступить'}</h1><div class="row c">${cr(win||water?'strelets':ZONES[r.zi].boss,128)}</div>
   <p>${win?`${ZONES[r.zi].name} позади. Царю будет что рассказать.`:water?`Нечисть свалила тебя, но живая вода вернула к жизни. Очнулся у ворот кремля: здоровье ${S.hp}. Добыча похода пропала, живой воды больше нет.`:'Добыча похода пропала, опыт остался с тобой.'}</p>
@@ -317,26 +330,33 @@ function endRun(win,how){busy=0;clearInterval(tick);const r=run;run=null;S.runs+
   ${row('Метких выстрелов',r.crits)}${row('Лучшее комбо',r.maxc)}${row('Золото',win?`+${r.gold}`:`0 (пропало ${r.gold})`)}${row('Опыт',`+${r.xp}`)}${r.newZone?row('Открыта зона',r.newZone):''}</table>
   <p class="px small gold" style="margin-top:16px">Серия: ${S.streak} дн.</p><div class="row c"><button class="main" data-act="map">В кремль</button></div></div>`;paintAll()})}
 
+// решение поверх арены занимает левую часть, нечисть видна; длинное не влезло — во всю арену, в три колонки
+// арена сжалась (длинная подсказка, система уравнений) — подбираем заново; не влезло и так — шрифт мельче
+function solFit(){const o=$('.arena>#sol'),b=o&&o.querySelector('.sol');if(!b)return;o.classList.remove('wide','tight');
+  for(const c of['wide','tight']){if(b.scrollHeight<=b.clientHeight)break;o.classList.add(c)}}
 // ---------- эффекты ----------
 function anim(e,c){if(!e)return;e.classList.remove(c);void e.offsetWidth;e.classList.add(c);setTimeout(()=>e.classList.remove(c),500)}
 function pop(k,text,crit){const d=document.createElement('div');d.className='dmg'+(crit?' crit':'');d.textContent=text;$('#m'+k).appendChild(d);setTimeout(()=>d.remove(),1000)}
 function msg(t,c){$('#msg').innerHTML=`<span class="${c}">${t}</span>`}
-function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('#toast').appendChild(d);setTimeout(()=>d.remove(),3500)}
+function toast(t,ms=3500){const d=document.createElement('div');d.className='toast';d.textContent=t;d.style.animationDuration=ms+'ms';$('#toast').appendChild(d);setTimeout(()=>d.remove(),ms)}
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const d=b.dataset;
-  const A={map:()=>show(mapScreen),bld:()=>show(()=>building(d.id)),go:()=>startExp(+d.zi),intro:()=>{S.intro=true;save();show(mapScreen)},
-    lesson:()=>{const back=view;startTut([d.t],()=>show(back),true)},izt:()=>{izTab=d.t;view()},beast:()=>{beastId=d.id;view();const a=$('.beastart');a&&a.scrollIntoView()},beastback:()=>{const id=beastId;beastId=null;view();const c=$(`[data-act="beast"][data-id="${id}"]`);c&&c.scrollIntoView({block:'center'})},
+  const A={map:()=>show(mapScreen),bld:()=>show(()=>building(d.id)),go:()=>startExp(+d.zi),gear:()=>{const m=$('.gearm');if(m)m.hidden=!m.hidden},
+    lesson:()=>{const back=view;startTut([d.t],()=>show(back),true)},izt:()=>{izTab=d.t;view()},beast:()=>{beastId=d.id;view();const a=$('.beastart');a&&!DESK()&&a.scrollIntoView()},beastback:()=>{beastId=null;view()},bzt:()=>{bzTab=+d.z;view()},
+    izp:()=>{izPage+=+d.d;view()},miss:()=>{const f=S.fallen[+d.i];if(f&&f.miss)modal(`<h2>${f.name}: последнее уравнение</h2>${missHTML(f.miss)}`)},
     hit,sel:()=>sel(+d.i),scroll:useScroll,potion:usePotion,buy:()=>buy(d.id),next:()=>{run.step++;enterRoom()},
-    sol:()=>{if(run&&run.lastWrong)$('#sol').innerHTML=solHTML(run.lastWrong)},
+    sol:()=>{if(run&&run.lastWrong){$('#sol').innerHTML=solHTML(run.lastWrong)+'<button class="solx" data-act="solx" title="Закрыть">×</button>';solFit()}},solx:()=>{$('#sol').innerHTML='';const a=$('#ans');a&&a.focus()},
     flee:()=>{if(!busy&&confirm(`Отступить в кремль? Добыча похода (${run.gold} зол.) пропадёт, опыт останется.`))endRun(false,'flee')},
-    ics,newhero:()=>show(introView),
+    ics,newhero:()=>show(mapScreen),
     tnext:()=>{if(tut.stage==='rules'){tut.stage='ex';tut.step=0}else{tut.stage='prac';tut.cur=newEq(TI[tut.q[tut.i]])}tutView()},
     tstep:()=>{tut.step++;tutView()},tcheck:tCheck,tskip:tutDone,
     tsol:()=>{$('#sol').innerHTML=solHTML(tut.cur)+'<div class="row" style="margin-top:8px"><button data-act="tnew">Другая задача</button></div>'},
     tnew:()=>{tut.cur=newEq(TI[tut.q[tut.i]]);tutView()},
     skipzone:()=>{const k=ZONES.findIndex((_,zi)=>!zBeaten(zi));if(k>=0&&confirm(`Открыть путь дальше, не побеждая хозяина зоны «${ZONES[k].name}»?`)){S.beaten.push(ZONES[k].id);save();MB=null;view()}},
-    reset:()=>{if(confirm('Стереть весь прогресс? Книга павших останется.')){reborn();show(introView)}}};
+    reset:()=>{if(confirm('Стереть весь прогресс? Книга павших останется.')){reborn();show(mapScreen)}}};
   A[d.act]&&A[d.act]()});
-fill();save();if(!passDays())show(S.intro?mapScreen:introView);
+document.addEventListener('change',e=>{if(e.target.id==='remind'){S.remind=e.target.value||'19:00';save()}});
+addEventListener('resize',()=>{fitMap();paintAll()});
+fill();S.intro=true;save();if(!passDays())show(mapScreen);
 // вкладка открыта в 4 утра — новый день наступает без перезагрузки
 setInterval(()=>{if(gday()!==S.day&&!passDays()&&!run&&!tut&&view)view()},60000);

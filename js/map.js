@@ -146,13 +146,18 @@ function plate(g,x,y,lines,hot){g.font='9px "Press Start 2P", monospace';const w
   g.fillStyle=hot?'rgba(60,30,16,.92)':'rgba(14,10,8,.82)';g.fillRect(x-w/2,y-h/2,w,h);g.strokeStyle=hot?'#d4a84a':'#6a4a2a';g.lineWidth=1;g.strokeRect(x-w/2+.5,y-h/2+.5,w-1,h-1);
   lines.forEach((l,k)=>{g.fillStyle=k?'#9a8a72':(hot?'#f0d080':'#e8dcc4');g.fillText(l,x-g.measureText(l).width/2,y-h/2+16+k*14)})}
 
-// рисует карту на видимом холсте: основа + подсветка + подписи
+// рамка подписи зоны — для подсветки цели обучения (js/onboarding.js)
+const zoneLines=(zi,open)=>open?[ZONES[zi].short]:[ZONES[zi].short,'закрыто'];
+function zonePlate(zi){const g=MB.base.getContext('2d'),[x,y]=zoneLabelPos(zi),L=zoneLines(zi,zOpen(zi));g.font='9px "Press Start 2P", monospace';
+  const w=Math.max(...L.map(l=>g.measureText(l).width))+14,h=L.length*14+8;return{x:x-w/2,y:y-h/2,w,h}}
+// рисует карту на видимом холсте: основа + подсветка + подписи; st.hl — зона-цель обучения
 function paintMap(cv,st){const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(MB.base,0,0);
-  const hz=st.hover&&st.hover.type==='zone'?st.hover.zi:-9,sz=st.sel&&st.sel.type==='zone'?st.sel.zi:-9;
-  MB.cells.forEach(c=>{if(c.z===hz||c.z===sz)diamond(g,c.i,c.j,c.z===sz?'rgba(255,200,120,.16)':'rgba(255,220,160,.1)')});
-  ZONES.forEach((z,zi)=>{const[x,y]=zoneLabelPos(zi);plate(g,x,y,st.open(zi)?[z.short]:[z.short,'закрыто'],zi===hz||zi===sz)});
+  const hz=st.hover&&st.hover.type==='zone'?st.hover.zi:-9,sz=st.sel&&st.sel.type==='zone'?st.sel.zi:-9,lz=st.hl!=null?st.hl:-9;
+  MB.cells.forEach(c=>{if(c.z===hz||c.z===sz||c.z===lz)diamond(g,c.i,c.j,c.z===lz?'rgba(255,214,120,.2)':c.z===sz?'rgba(255,200,120,.16)':'rgba(255,220,160,.1)')});
+  ZONES.forEach((z,zi)=>{const[x,y]=zoneLabelPos(zi);plate(g,x,y,zoneLines(zi,st.open(zi)),zi===hz||zi===sz||zi===lz)});
+  // здание под мышью: рамка и плашка «название · зачем»
   const hb=st.hover&&st.hover.type==='bld'?st.hover.id:null;
-  if(hb){const r=MB.rects.find(q=>q.id===hb),b=BLD.find(q=>q.id===hb);g.strokeStyle='#d4a84a';g.strokeRect(r.x+.5,r.y+.5,r.w,r.h);plate(g,r.x+r.w/2,r.y-10,[b.name],1)}}
+  if(hb){const r=MB.rects.find(q=>q.id===hb),b=BLD.find(q=>q.id===hb);g.strokeStyle='#d4a84a';g.strokeRect(r.x+.5,r.y+.5,r.w,r.h);plate(g,r.x+r.w/2,Math.max(16,r.y-(b.tip?17:10)),b.tip?[b.name,b.tip]:[b.name],1)}}
 function mapPick(cv,ev){const rc=cv.getBoundingClientRect(),mx=(ev.clientX-rc.left)*cv.width/rc.width,my=(ev.clientY-rc.top)*cv.height/rc.height;
   for(let k=MB.rects.length-1;k>=0;k--){const r=MB.rects[k];if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h)return{type:'bld',id:r.id}}
   const u=(mx-MAP.W/2)/(MAP.TW/2),v=(my-MAP.H/2)/(MAP.TH/2)+2*MAP.C,i=Math.floor((u+v)/2),j=Math.floor((v-u)/2);

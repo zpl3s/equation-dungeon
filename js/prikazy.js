@@ -349,9 +349,16 @@ function pzFill(){S.pz=Object.assign(pzNew(),S.pz||{})}
 const pzSt=(sec,k)=>S.pz.st[sec+k]||(S.pz.st[sec+k]={n:0,ok:0,r:[]});
 const pzAcc=q=>q.r.length?pzSum(q.r)/q.r.length:0;
 const pzMast=(sec,k)=>{const q=S.pz.st[sec+k];return!!q&&q.ok>=8&&pzAcc(q)>=.7};   // как темы в бою: 8 верных и 70% из последних 10
-const pzOpen=sec=>S.pz.open.includes(sec);
-const pzUnl=(sec,k)=>!k||pzMast(sec,k-1);
-const pzTopStep=sec=>pzMast(sec,1)?2:pzMast(sec,0)?1:0;
+// задачи царя открываются победами над хозяевами зон: Полуденница — счётные дела и ступень 1, Кикимора — Большая казна и ступень 2 во всех приказах,
+// Водяной — Большой приход, Леший — Посольский и ступень 3, Баба Яга — Купецкий. До Полуденницы задач нет совсем.
+const PZ_GATE={stat:'field',fin:'opushka',prod:'reka',mark:'chascha',unit:'dubrava'},PZ_STEP_GATE=['field','opushka','chascha'];
+const PZ_BOSS_TV={field:'Полуденницей',opushka:'Кикиморой',reka:'Водяным',chascha:'Лешим',dubrava:'Бабой Ягой'};   // «после победы над …»
+const pzAvail=sec=>S.beaten.includes(PZ_GATE[sec]);
+const pzStepOk=k=>S.beaten.includes(PZ_STEP_GATE[k]);
+const pzOn=()=>!!S.pz&&pzAvail('stat');
+const pzOpen=sec=>S.pz.open.includes(sec)&&pzAvail(sec);
+const pzUnl=(sec,k)=>pzStepOk(k)&&(!k||pzMast(sec,k-1));
+const pzTopStep=sec=>pzUnl(sec,2)?2:pzUnl(sec,1)?1:0;
 function pzRec(sec,k,ok){const q=pzSt(sec,k),was=pzMast(sec,k);q.n++;q.r.push(ok?1:0);if(q.r.length>10)q.r.shift();if(ok)q.ok++;
   if(!was&&pzMast(sec,k))toast(k<2?`${PZ_BY[sec].name}: ступень ${k+1} освоена, открыта ступень ${k+2}`:`${PZ_BY[sec].name} освоен целиком!`)}
 
@@ -359,9 +366,9 @@ function pzRec(sec,k,ok){const q=pzSt(sec,k),was=pzMast(sec,k);q.n++;q.r.push(ok
 const RANKS=['стрелец','стольник','воевода','боярин'],RANK_GOLD=[0,30,60,100],RANK_OK=[0,3,10,25];
 const RANK_SAY=['','Быть тебе отныне стольником: / за столом моим — не дворником!','Жалую тебя воеводой: / правь умом, а не погодой!','Будь отныне ты боярин: / шубу дам — ходи как барин!'];
 const rankName=()=>S.pz&&S.pz.rank?RANKS[S.pz.rank]:'';
-function rankFits(r){const p=S.pz;return p.ok>=RANK_OK[r]&&(r!==2||p.open.length>=PZ.length)&&(r!==3||PZ.every(s=>pzMast(s.id,2)))}
+function rankFits(r){const p=S.pz;return p.ok>=RANK_OK[r]&&(r!==2||PZ.every(s=>pzOpen(s.id)))&&(r!==3||PZ.every(s=>pzMast(s.id,2)))}
 function rankUp(){const up=[];while(S.pz.rank<3&&rankFits(S.pz.rank+1)){const r=++S.pz.rank;S.gold+=RANK_GOLD[r];up.push(r);toast(`Царь жалует тебя: ты ${RANKS[r]}! +${RANK_GOLD[r]} зол.`)}return up}
-function rankNext(){const p=S.pz,r=p.rank+1;if(r>3)return'Выше боярина чинов нет.';const n=[],k=RANK_OK[r]-p.ok,c=PZ.length-p.open.length,t=PZ.filter(s=>!pzMast(s.id,2)).length;
+function rankNext(){const p=S.pz,r=p.rank+1;if(r>3)return'Выше боярина чинов нет.';const n=[],k=RANK_OK[r]-p.ok,c=PZ.filter(s=>!pzOpen(s.id)).length,t=PZ.filter(s=>!pzMast(s.id,2)).length;
   if(k>0)n.push(`ещё ${k} ${pzPl(k,'верное поручение','верных поручения','верных поручений')}`);
   if(r===2&&c>0)n.push(`открыть ещё ${c} ${pzPl(c,'приказ','приказа','приказов')}`);
   if(r===3&&t>0)n.push(`освоить третью ступень ещё в ${t} ${pzPl(t,'приказе','приказах','приказах')}`);
@@ -393,32 +400,40 @@ const DYAK_OK=['Верно, по-приказному.','Сошлось до к�
 const pzEnd=t=>/[.!?]$/.test(t)?t:t+'.';   // «300 руб.» без второй точки
 const rhyme=t=>`<i>«${t.split(' / ').join('<br>')}»</i>`;
 
-// ---------- поручения: одно в день при входе, отложенное царь напомнит над картой; малых — до двух в день ----------
-// Новый приказ царь даёт, когда освоена первая ступень последнего открытого. Иначе — из открытого приказа на верхней открытой ступени, слабые чаще.
-function tsarPick(){const p=S.pz,nx=PZ.find(s=>!pzOpen(s.id)),last=p.open[p.open.length-1];
-  if(nx&&(!last||pzMast(last,0)))return{sec:nx.id,step:0};
-  const w=p.open.map(id=>{const q=p.st[id+pzTopStep(id)];return 1+(1-(q&&q.r.length?pzAcc(q):.7))*4});let x=Math.random()*pzSum(w);
-  for(let i=0;i<w.length;i++){x-=w[i];if(x<=0)return{sec:p.open[i],step:pzTopStep(p.open[i])}}
-  return{sec:last,step:pzTopStep(last)}}
+// ---------- поручения: одно в день, царь объявляет его в своей реплике над картой; отложенное напомнит в разговоре; малых — до двух в день ----------
+// Новый приказ царь даёт, как только его открыла победа над хозяином зоны. Иначе — задача из открытого приказа на верхней открытой ступени, слабые чаще.
+function tsarPick(){const p=S.pz,nx=PZ.find(s=>pzAvail(s.id)&&!pzOpen(s.id)),op=PZ.map(s=>s.id).filter(pzOpen);
+  if(nx||!op.length)return{sec:(nx||PZ[0]).id,step:0};
+  const w=op.map(id=>{const q=p.st[id+pzTopStep(id)];return 1+(1-(q&&q.r.length?pzAcc(q):.7))*4});let x=Math.random()*pzSum(w);
+  for(let i=0;i<w.length;i++){x-=w[i];if(x<=0)return{sec:op[i],step:pzTopStep(op[i])}}
+  return{sec:op[op.length-1],step:pzTopStep(op[op.length-1])}}
 // st: new → offered (царь сказал) → later (отложено) | taken (задача выдана) → ok | bad | no (отказ); у малого ещё gone — отложено, пропало
-function tsarDay(){const p=S.pz,t=today();if(!p.task||p.task.day!==t){p.task={day:t,st:'new',...tsarPick(),p:null};save()}return p.task}
-const smallLive=()=>{const m=S.pz.small;return m&&m.day===today()&&(m.st==='offered'||m.st==='taken')?m:null};
-function tsarPanel(){if(!S.pz||!S.intro)return'';const T=tsarDay(),m=smallLive(),k=['new','offered','taken'].includes(T.st)?'day':m?'small':'';if(!k)return'';
-  const o=k==='day'?T:m,s=PZ_BY[o.sec],nw=!pzOpen(o.sec);
-  return`<div class="panel"><div class="row"><span class="px small gold" style="flex:1">${k==='day'?'Поручение дня':'Малое поручение'} от царя</span><span class="small muted">${s.name} · ${s.topic} · ступень ${o.step+1}</span></div>
-    <p class="small" style="margin:8px 0">Награда: ${k==='day'?PZ_DAY_GOLD+' зол.':PZ_SMALL_GOLD+' зол. жалованья'}${nw?`, и ${s.name} откроется в палатах`:''}${RANK_OK[S.pz.rank+1]?', шаг к новому чину':''}. Ошибёшься или откажешься — царь осерчает, награды не будет.</p>
-    <div class="row"><button class="main" data-act="pztake" data-k="${k}">${o.st==='taken'?'Вернуться к поручению':'Взяться'}</button><button data-act="pzlater" data-k="${k}">Отложить</button></div></div>`}
-function tsarPanelUpd(){const el=document.getElementById('tsarTask');if(el)el.innerHTML=tsarPanel()}
-// каждый тик faces.js, пока на экране царь над картой: новое поручение дня он объявляет сам
-function tsarTick(){if(typeof S==='undefined'||!S.pz||!S.intro)return;const T=tsarDay();if(T.st!=='new')return;T.st='offered';save();
-  say('tsar',pzOpen(T.sec)?pick(TSAR_OFFER):PZ_BY[T.sec].tsar);tsarPanelUpd()}
+// До победы над Полуденницей поручений нет (null). Невзятое поручение, которое старые правила дали не по воротам, царь заменяет.
+const PZ_LIVE=['new','offered','later','taken'];
+const pzFits=o=>pzAvail(o.sec)&&pzStepOk(o.step);
+function tsarDay(){if(!pzOn())return null;const p=S.pz,t=today();
+  if(!p.task||p.task.day!==t||PZ_LIVE.includes(p.task.st)&&!pzFits(p.task)){p.task={day:t,st:'new',...tsarPick(),p:null};save()}return p.task}
+const smallLive=()=>{const m=pzOn()&&S.pz.small;return m&&m.day===today()&&(m.st==='offered'||m.st==='taken')&&pzFits(m)?m:null};
+// поручение в реплике царя: облачко висит, пока не нажмут «Взяться», «Позже» или ×; ушёл с карты — покажет снова, когда вернёшься
+let tzUp=false;
+const TSAR_BACK=['Ты указ мой начинал — / доведи, чтоб не пропал!','Начал счёт — так не бросай: / доведи, да не зевай!'];
+function tsarOffer(k){const o=tzObj(k),s=PZ_BY[o.sec],nw=!pzOpen(o.sec),day=k==='day';tzUp=true;
+  const t=o.st==='taken'?pick(TSAR_BACK):day&&nw?s.tsar:pick(TSAR_OFFER);
+  const h=`${day?'Поручение дня':'Малое поручение'}: ${s.name}, ступень ${o.step+1}. ${pzEnd(`Награда — ${day?PZ_DAY_GOLD+' зол.':PZ_SMALL_GOLD+' зол. жалованья'}${nw?', и приказ откроется в палатах':''}`)} Ошибёшься или откажешься — царь осерчает.`;
+  const off=()=>{tzUp=false};
+  say('tsar',t,null,null,null,{stay:1,h,alive:()=>!!document.getElementById('map'),gone:off,
+    btns:[[o.st==='taken'?'Вернуться':'Взяться',()=>{off();tzTake(k)},1],['Позже',()=>{off();tzLater(k)}]],x:()=>{off();tzLater(k,1)}});
+  if(o.st==='new'){o.st='offered';save()}}
+// каждый тик faces.js, пока на экране царь над картой и никто не говорит: невзятое поручение он объявляет сам
+function tsarTick(){if(typeof S==='undefined'||tzUp||saying())return;const T=tsarDay();if(!T)return;
+  if(['new','offered','taken'].includes(T.st))return tsarOffer('day');if(smallLive())tsarOffer('small')}
 // вызывается из talk() в faces.js: true — царь завёл свой разговор вместо обычного
-function tsarTalk(click){if(typeof S==='undefined'||!S.pz||!S.intro||!document.querySelector('.say[data-who="tsar"]'))return false;const T=tsarDay(),g=Math.random();
+function tsarTalk(click){if(typeof S==='undefined'||!document.querySelector('.say[data-who="tsar"]'))return false;const T=tsarDay(),g=Math.random();if(!T)return false;
   const dlg=(d,fn)=>{d.forEach(([w,t,m],i)=>say(w==='t'?'tsar':'strelets',t,m,g,i===d.length-1?fn:null));TK.last=Date.now()};
-  if(T.st==='later'&&(click||Math.random()<.5)){dlg(pick(TSAR_REASK),()=>{if(T.st==='later'){T.st='offered';save();tsarPanelUpd()}});return true}
+  if(T.st==='later'&&(click||Math.random()<.5)){dlg(pick(TSAR_REASK),()=>{if(T.st==='later'){T.st='offered';save()}});return true}
   const m=S.pz.small,n=m&&m.day===today()?m.n:0;
   if(['ok','bad','no'].includes(T.st)&&!smallLive()&&n<2&&Math.random()<(click?.4:.3)){
-    dlg(pick(TSAR_SMALL),()=>{S.pz.small={day:today(),n:n+1,st:'offered',...tsarPick(),p:null};save();tsarPanelUpd()});return true}
+    dlg(pick(TSAR_SMALL),()=>{S.pz.small={day:today(),n:n+1,st:'offered',...tsarPick(),p:null};save()});return true}
   return false}
 
 // ---------- экран поручения: царь велит, ответ один ----------
@@ -427,11 +442,11 @@ const tzObj=k=>k==='day'?S.pz.task:S.pz.small;
 const tsarFace=()=>'<canvas class="face" data-face="tsar" width="64" height="64"></canvas>';
 const PZ_FH='Ответ — число: 1200, 7,5 или 25%. Единицы писать не обязательно.';
 const pzSolHTML=e=>`<div class="sol"><div class="small muted">Решение:</div><ol>${e.s.map(stepLi).join('')}</ol><div class="small">Ответ: ${pzFa(e)}</div></div>`;
-const pzFormulas=s=>`<details class="pzf"><summary class="small">Формулы: ${s.name}</summary><ul class="small">${s.rules.map(r=>`<li>${r}</li>`).join('')}</ul></details>`;
+const pzFormulas=(s,side)=>`<details class="pzf"${side&&innerWidth>=900?' open':''}><summary class="small">Формулы: ${s.name}</summary><ul class="small">${s.rules.map(r=>`<li>${r}</li>`).join('')}</ul></details>`;
 const pzMsg=(t,c)=>{const m=$('#pzmsg');if(m)m.innerHTML=`<span class="${c}">${t}</span>`};
-function tzTake(k){const o=tzObj(k);if(!o||!['new','offered','later','taken'].includes(o.st))return;if(!o.p)o.p=pzGen(o.sec,o.step);o.st='taken';save();tz={k,res:null};
+function tzTake(k){const o=tzObj(k);if(!o||!PZ_LIVE.includes(o.st))return;if(!o.p)o.p=pzGen(o.sec,o.step);o.st='taken';save();tz={k,res:null};
   if(!S.pz.tut[o.sec])startDyak(o.sec,()=>show(tzView));else show(tzView)}
-function tzLater(k){const o=tzObj(k);if(!o)return;o.st=k==='day'?'later':'gone';save();if(k==='day')say('tsar',pick(TSAR_LATER));tsarPanelUpd()}
+function tzLater(k,quiet){const o=tzObj(k);if(!o)return;o.st=k==='day'?'later':'gone';save();if(k==='day'&&!quiet)say('tsar',pick(TSAR_LATER))}
 function tzView(){const o=tz&&tzObj(tz.k);if(!o||!o.p)return show(mapScreen);const s=PZ_BY[o.sec],e=o.p,r=tz.res;let b;
   if(!r)b=`<p class="muted small">Царь велит:</p><p class="pzq">${e.q}</p>
     <div class="row" style="flex-wrap:nowrap"><input id="pzans" autocomplete="off" spellcheck="false" placeholder="ответ"><button class="main" data-act="pzans">Ответить</button></div>
@@ -439,10 +454,10 @@ function tzView(){const o=tz&&tzObj(tz.k);if(!o||!o.p)return show(mapScreen);con
   else b=`<p>${rhyme(r.say)}</p><p class="small muted">${e.q}</p>
     <p class="${r.ok?'ok':'bad'}">${r.ok?'Верно: '+pzFa(e):(r.no?'Отказ.':`Неверно: у тебя ${r.v}.`)+` Верный ответ: ${pzEnd(pzFa(e))}`}</p>${r.gift?`<p class="gold">${r.gift}</p>`:''}
     <div id="pzsol"><button data-act="pzsol">Показать решение</button></div>`;
-  app.innerHTML=`<div class="panel tut pz"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${tsarFace()}<div class="px small c gold">Царь</div></div><div class="bubble">${b}</div></div>
+  app.innerHTML=`<div class="pzcols"><div class="panel tut pz"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${tsarFace()}<div class="px small c gold">Царь</div></div><div class="bubble">${b}</div></div>
     <div class="row" style="margin-top:12px"><span class="small muted" style="flex:1;min-width:200px">${tz.k==='day'?'Поручение дня':'Малое поручение'} · ${s.name} · ступень ${o.step+1}, ${PZ_STEP[o.step]}</span>
-    ${r?'<button data-act="pzpal">В палаты</button><button class="main" data-act="map">На карту</button>':`<button data-act="pzno">Отказаться</button><button data-act="pzlater" data-k="${tz.k}">Отложить</button>`}</div>
-    ${pzFormulas(s)}</div>`;
+    ${r?'<button data-act="pzpal">В палаты</button><button class="main" data-act="map">На карту</button>':`<button data-act="pzno">Отказаться</button><button data-act="pzlater" data-k="${tz.k}">Отложить</button>`}</div></div>
+    <div class="panel">${pzFormulas(s,1)}</div></div>`;
   const a=$('#pzans');if(a){a.focus();a.onkeydown=ev=>{if(ev.key==='Enter')tzAnswer()}}}
 function tzAnswer(no){const o=tzObj(tz.k),e=o.p;let ok=false,v='';
   if(no){if(!confirm('Отказаться от поручения? Царь осерчает, награды не будет.'))return}
@@ -450,7 +465,7 @@ function tzAnswer(no){const o=tzObj(tz.k),e=o.p;let ok=false,v='';
   const gift=[];let line;
   if(ok){o.st='ok';S.pz.ok++;
     if(tz.k==='day'){S.gold+=PZ_DAY_GOLD;gift.push(`+${PZ_DAY_GOLD} зол.`)}else{const x=payOut(PZ_SMALL_GOLD);gift.push(x.g?`+${x.g} зол. жалованья`:`Золота нет: ${x.why}`)}
-    if(!pzOpen(o.sec)){S.pz.open.push(o.sec);gift.push(`${PZ_BY[o.sec].name} открыт в палатах`)}
+    if(!S.pz.open.includes(o.sec)){S.pz.open.push(o.sec);gift.push(`${PZ_BY[o.sec].name} открыт в палатах`)}
     const up=rankUp();up.forEach(r=>gift.push(`чин «${RANKS[r]}», +${RANK_GOLD[r]} зол.`));line=up.length?RANK_SAY[up[up.length-1]]:pick(TSAR_OK)}
   else{o.st=no?'no':'bad';line=pick(no?TSAR_NO:TSAR_BAD)}
   save();tz.res={ok,no,v:v.trim(),say:line,gift:gift.join(' · ')};FS.tsar.st=ok?'pleased':'angry';setTimeout(()=>{if(!SPK.cur)FS.tsar.st='neutral'},6000);show(tzView)}
@@ -458,29 +473,36 @@ function tzAnswer(no){const o=tzObj(tz.k),e=o.p;let ok=false,v='';
 // ---------- палаты: открытые приказы, ступени, жалованье ----------
 function pzBar(sec,k){const q=S.pz.st[sec+k],ok=q?q.ok:0,a=q&&q.r.length?pzAcc(q):0,m=pzMast(sec,k);
   return`<div class="pzbar"><div class="bar m"><i style="width:${Math.min(1,ok/8)*Math.min(1,a/.7)*100}%"></i></div><span class="small ${m?'gold':'muted'}">${m?'освоено · ':''}${Math.min(ok,8)}/8 · ${q&&q.r.length?Math.round(a*100)+'%':'—'}</span></div>`}
-function palatyHTML(){const p=S.pz,T=tsarDay(),m=smallLive();
-  const st={new:'ждёт тебя',offered:'ждёт тебя',later:'отложено',taken:'начато',ok:'выполнено',bad:'не вышло',no:'ты отказался'}[T.st];
-  const act=['new','offered','later','taken'].includes(T.st)?` <button class="main" data-act="pztake" data-k="day">${T.st==='taken'?'Вернуться к поручению':'Взяться'}</button>`:'';
+const PZ_SHORT={stat:'Счётных дел',fin:'Большой казны',prod:'Большого прихода',mark:'Посольский',unit:'Купецкий'};
+let pzTab=null;   // какой приказ открыт во вкладке палат
+function pzLock(sec,k){return!pzStepOk(k)?`откроется после победы над ${PZ_BOSS_TV[PZ_STEP_GATE[k]]}`:`откроется, когда освоишь ступень ${k}`}
+function palatyHTML(){const p=S.pz,T=tsarDay(),m=smallLive();let task;
+  if(!T)task=`<p>${rhyme('Рано, братец, в мой приказ: / Полуденницу сперва одолей — вот сказ.')}</p><p class="small muted">Поручения царь даёт после победы над Полуденницей, хозяйкой Поля.</p>`;
+  else{const st={new:'ждёт тебя',offered:'ждёт тебя',later:'отложено',taken:'начато',ok:'выполнено',bad:'не вышло',no:'ты отказался'}[T.st];
+    const act=PZ_LIVE.includes(T.st)?` <button class="main" data-act="pztake" data-k="day">${T.st==='taken'?'Вернуться к поручению':'Взяться'}</button>`:'';
+    task=`<p>Поручение дня — ${PZ_BY[T.sec].name}, ступень ${T.step+1}: <b>${st}</b>.${act}</p>${m?`<p>Малое поручение — ${PZ_BY[m.sec].name}. <button data-act="pztake" data-k="small">Взяться</button></p>`:''}`}
   const top=`<div class="panel tut pz"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${tsarFace()}<div class="px small c gold">Царь</div></div><div class="bubble">
-    <p>${rhyme(pick(TSAR_HALL))}</p><p>Чин: <b>${RANKS[p.rank]}</b> · верных поручений: ${p.ok}.<br><span class="small muted">${rankNext()}</span></p>
-    <p>Поручение дня — ${PZ_BY[T.sec].name}, ступень ${T.step+1}: <b>${st}</b>.${act}</p>${m?`<p>Малое поручение — ${PZ_BY[m.sec].name}. <button data-act="pztake" data-k="small">Взяться</button></p>`:''}</div></div></div>`;
-  const list=PZ.map(s=>pzOpen(s.id)?`<div class="pzsec"><div class="row"><span class="px small gold" style="flex:1">${s.name}</span><button data-act="pzdyak" data-s="${s.id}">Урок дьяка</button></div>
+    ${T?`<p>${rhyme(pick(TSAR_HALL))}</p>`:''}<p>Чин: <b>${RANKS[p.rank]}</b> · верных поручений: ${p.ok}.<br><span class="small muted">${rankNext()}</span></p>${task}</div></div>
+    <p class="small muted" style="margin:12px 0 0">Поручение дня — ${PZ_DAY_GOLD} зол. Малые поручения (царь даёт их в разговоре над картой) — ${PZ_SMALL_GOLD} зол., задачи приказов — ${PZ_PAY.join(' / ')} зол. по ступеням. Это жалованье: его платят только в день, когда стрелец вернулся из похода с добычей, и не больше ${PZ_PAY_DAY} зол. в день. ${S.wonDay===today()?`Сегодня выдано ${payToday()} из ${PZ_PAY_DAY}.`:'Сегодня похода с добычей ещё не было.'} Норму дня закрывает только поход.</p></div>`;
+  if(!PZ_BY[pzTab])pzTab=(PZ.find(s=>pzOpen(s.id))||PZ[0]).id;
+  const s=PZ_BY[pzTab],tabs=PZ.map(x=>`<button data-act="pztab" data-s="${x.id}" class="${pzTab===x.id?'on':''}${pzOpen(x.id)?'':' dim'}">${PZ_SHORT[x.id]}</button>`).join('');
+  const body=pzOpen(s.id)?`<div class="row"><span class="px small gold" style="flex:1">${s.name}</span><button data-act="pzdyak" data-s="${s.id}">Урок дьяка</button></div>
       <div class="small muted" style="margin:4px 0 6px">${pzCap(s.topic)}: ${s.what}.</div>
-      ${[0,1,2].map(k=>`<div class="pzstep"><span class="small pzname">${k+1}. ${pzCap(PZ_STEP[k])}</span>${pzUnl(s.id,k)?pzBar(s.id,k)+`<button data-act="pzgo" data-s="${s.id}" data-n="${k}">Решать</button>`:`<span class="small muted">откроется, когда освоишь ступень ${k}</span>`}</div>`).join('')}</div>`
-    :`<div class="pzsec off"><div class="px small muted">${s.name}</div><div class="small muted">${pzCap(s.topic)}: ${s.what}. Откроется, когда выполнишь поручение царя из этого приказа.</div></div>`).join('');
-  return top+`<div class="panel"><h2>Приказы</h2>${p.open.length?'':'<p class="muted">Ни один приказ ещё не открыт. Выполни поручение царя — откроется первый.</p>'}${list}
-    <p class="small muted" style="margin-top:12px">Поручение дня — ${PZ_DAY_GOLD} зол. Малые поручения (царь даёт их в разговоре над картой) — ${PZ_SMALL_GOLD} зол., задачи приказов — ${PZ_PAY.join(' / ')} зол. по ступеням. Это жалованье: его платят только в день, когда стрелец вернулся из похода с добычей, и не больше ${PZ_PAY_DAY} зол. в день. ${S.wonDay===today()?`Сегодня выдано ${payToday()} из ${PZ_PAY_DAY}.`:'Сегодня похода с добычей ещё не было.'} Норму дня закрывает только поход.</p></div>`}
+      ${[0,1,2].map(k=>`<div class="pzstep"><span class="small pzname">${k+1}. ${pzCap(PZ_STEP[k])}</span>${pzUnl(s.id,k)?pzBar(s.id,k)+`<button data-act="pzgo" data-s="${s.id}" data-n="${k}">Решать</button>`:`<span class="small muted">${pzLock(s.id,k)}</span>`}</div>`).join('')}`
+    :`<div class="px small muted">${s.name}</div><div class="small muted" style="margin-top:6px">${pzCap(s.topic)}: ${s.what}.</div>
+      <p class="small" style="margin-top:10px">${pzAvail(s.id)?'Откроется, когда выполнишь поручение царя из этого приказа.':`Откроется после победы над ${PZ_BOSS_TV[PZ_GATE[s.id]]}: тогда царь даст поручение из этого приказа.`}</p>`;
+  return`<div class="pzhall">${top}<div class="panel"><h2>Приказы</h2><div class="row tabs">${tabs}</div><div class="pzsec">${body}</div></div></div>`}
 
 // ---------- решать ступень в палатах ----------
 let pzPr=null;   // {sec, k, e: задача, res}
 function pzGo(sec,k){pzPr={sec,k,e:pzGen(sec,k),res:null};show(pzView)}
 function pzView(){const{sec,k,e,res}=pzPr,s=PZ_BY[sec];view=pzView;
-  app.innerHTML=`${hdr()}<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${s.name}</h1><button data-act="pzpal">← В палаты</button></div>
+  app.innerHTML=`<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${s.name}</h1><button data-act="pzpal">← В палаты</button></div>
     <p class="small muted" style="margin:8px 0 6px">${pzCap(s.topic)} · ступень ${k+1}, ${PZ_STEP[k]}. ${PZ_HOW[k]}</p>${pzBar(sec,k)}</div>
-    <div class="panel"><p class="pzq">${e.q}</p>
+    <div class="pzcols"><div class="panel"><p class="pzq">${e.q}</p>
     ${res?`<div class="msg"><span class="${res.ok?'ok':'bad'}">${res.txt}</span></div><div class="row" style="margin-top:8px"><button class="main" data-act="pznext" id="pznext">Следующая задача</button><button data-act="pzsol">Решение</button></div><div id="pzsol"></div>`
       :`<div class="row" style="flex-wrap:nowrap"><input id="pzans" autocomplete="off" spellcheck="false" placeholder="ответ"><button class="main" data-act="pzcheck">Проверить</button></div><div class="small muted" style="margin-top:6px">${PZ_FH}</div><div class="msg" id="pzmsg"></div>`}
-    ${pzFormulas(s)}</div>`;
+    </div><div class="panel">${pzFormulas(s,1)}</div></div>`;
   paintAll();const a=$('#pzans');if(a){a.focus();a.onkeydown=ev=>{if(ev.key==='Enter')pzAnswer()}}else{const n=$('#pznext');if(n)n.focus()}}
 function pzAnswer(){const P=pzPr;if(!P||P.res)return;const v=$('#pzans').value;if(!v.trim())return pzMsg('Сначала впиши ответ','muted');const c=pzCheck(P.e,v);if(c.err)return pzMsg(c.err,'muted');
   pzRec(P.sec,P.k,c.ok);let txt;
@@ -513,7 +535,7 @@ function dkDone(){S.pz.tut[dk.sec]=1;save();const f=dk.after;dk=null;f()}
 document.addEventListener('click',ev=>{const b=ev.target.closest('[data-act]');if(!b||b.disabled)return;const d=b.dataset;
   const A={pztake:()=>tzTake(d.k),pzlater:()=>{const back=view===tzView;tzLater(d.k);if(back)show(mapScreen)},pzans:()=>tzAnswer(),pzno:()=>tzAnswer(true),
     pzsol:()=>{const e=view===tzView?tz&&tzObj(tz.k).p:pzPr&&pzPr.e;if(e)$('#pzsol').innerHTML=pzSolHTML(e)},
-    pzpal:()=>show(()=>building('palaty')),pzgo:()=>pzGo(d.s,+d.n),pzcheck:pzAnswer,pznext:()=>{pzPr.e=pzGen(pzPr.sec,pzPr.k);pzPr.res=null;pzView()},
+    pzpal:()=>show(()=>building('palaty')),pztab:()=>{pzTab=d.s;view&&view()},pzgo:()=>pzGo(d.s,+d.n),pzcheck:pzAnswer,pznext:()=>{pzPr.e=pzGen(pzPr.sec,pzPr.k);pzPr.res=null;pzView()},
     pzdyak:()=>{const back=view;startDyak(d.s,()=>show(back),true)},
     dknext:()=>{if(dk.stage==='rules'){dk.stage='ex';dk.step=0}else{dk.stage='prac';dk.e=pzGen(dk.sec,0)}dkView()},dkstep:()=>{dk.step++;dkView()},
     dkcheck:dkCheck,dkskip:dkDone,dksol:()=>{$('#pzsol').innerHTML=pzSolHTML(dk.e)+'<div class="row" style="margin-top:8px"><button data-act="dknew">Другая задача</button></div>'},

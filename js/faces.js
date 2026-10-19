@@ -69,17 +69,26 @@ const faceBox=id=>{const w=id==='tsar'?'tsar':'strelets';
   return`<div class="fbox f-${w}"><canvas class="face" data-face="${id}" width="64" height="64" title="${w==='tsar'?'Царь':'Стрелец'}"></canvas><div class="say" data-who="${w}"></div></div>`};
 
 // ---------- речь: очередь реплик, облачко у портрета ----------
-const SPK={q:[],cur:null,end:0,gap:0};
-const say=(who,text,m,grp,fn)=>SPK.q.push({who,text,m,grp,fn});  // fn — когда реплика зазвучит
+// who — 'strelets' (шапка), 'tsar' (над картой) или 'hero' (стрелец в бою); fn — когда реплика зазвучит.
+// o — висячая реплика: {stay:1, h: подсказка прозой, btns: [[надпись, fn, главная?]], x: fn крестика, alive: () => ещё к месту?, gone: fn, если пропала без ответа}.
+// Висячая держится, пока не нажмут кнопку; ушёл с экрана (нет облачка или alive() ложно) — пропадает и зовёт gone.
+const SPK={q:[],cur:null,end:0,gap:0,talk:0};
+const say=(who,text,m,grp,fn,o)=>SPK.q.push({who,text,m,grp,fn,...o});
 const box=who=>document.querySelector(`.say[data-who="${who}"]`);
 const saying=()=>SPK.cur||SPK.q.length;
 function talk(click){if(typeof tsarTalk==='function'&&tsarTalk(click))return;  // царь может вместо болтовни напомнить о поручении (js/prikazy.js)
   const d=line('talk'),g=Math.random();d.forEach(([w,t,m])=>say(w==='t'?'tsar':'strelets',t,m,g));TK.last=Date.now()}
 function needLine(n){say('strelets',line(n[0]))}
-function faceSync(){const t=Date.now();
-  document.querySelectorAll('canvas.face').forEach(cv=>{drawFace(cv);cv.classList.toggle('talk',!!SPK.cur&&SPK.cur.who===(cv.dataset.face==='tsar'?'tsar':'strelets'))});
-  document.querySelectorAll('.say').forEach(el=>{const on=SPK.cur&&SPK.cur.who===el.dataset.who,h=on?SPK.cur.text.split(' / ').join('<br>'):'';
-    if(on&&el.innerHTML!==h)el.innerHTML=h;el.classList.toggle('on',!!on)})}
+function sayHTML(it){let h=it.text.split(' / ').join('<br>');if(it.h)h+=`<span class="sayh">${it.h}</span>`;
+  if(it.btns)h+=`<span class="sayb">${it.btns.map(([l,,main],i)=>`<button data-say="${i}"${main?' class="main"':''}>${l}</button>`).join('')}</span>`;
+  if(it.x)h+='<button class="sayx" data-say="x" title="Закрыть">×</button>';return h}
+function faceSync(){const t=Date.now(),c=SPK.cur;
+  document.querySelectorAll('canvas.face').forEach(cv=>{drawFace(cv);cv.classList.toggle('talk',!!c&&t<SPK.talk&&c.who===(cv.dataset.face==='tsar'?'tsar':'strelets'))});
+  document.querySelectorAll('.say').forEach(el=>{const on=c&&c.who===el.dataset.who;
+    if(on){if(el._it!==c){el._it=c;el.innerHTML=sayHTML(c)}}else el._it=null;el.classList.toggle('on',!!on);el.classList.toggle('stay',!!(on&&c.stay))})}
+// кнопка в висячей реплике: реплика закрывается, потом срабатывает её действие
+document.addEventListener('click',e=>{const b=e.target.closest('[data-say]'),it=SPK.cur;if(!b||!it||!it.stay)return;
+  const f=b.dataset.say==='x'?it.x:(it.btns[+b.dataset.say]||[])[1];SPK.cur=null;SPK.gap=Date.now()+300;if(!SPK.q.length)FS.tsar.st='neutral';f&&f();faceSync()});
 
 // ---------- когда говорят ----------
 const SEEN='eqdungeon.seen'; // когда игрок был в игре последний раз (по часам игры, со сдвигом ?days=N)
@@ -103,9 +112,10 @@ function faceTick(){if(typeof S==='undefined')return;             // game.js е�
       F.evNext=t+(F.ev==='blink'&&Math.random()<.15?350:3000+Math.random()*3000)}}
   FS.strelets_face.st=mood();
   // очередь реплик: облачка нет на экране — реплика (и весь её диалог) пропадает
-  if(SPK.cur&&t>=SPK.end){SPK.cur=null;SPK.gap=t+500;if(!SPK.q.length)FS.tsar.st='neutral'}
-  while(!SPK.cur&&SPK.q.length&&t>=SPK.gap){const it=SPK.q.shift();if(!box(it.who)){if(it.grp)SPK.q=SPK.q.filter(x=>x.grp!==it.grp);continue}
-    SPK.cur=it;SPK.end=t+2600+it.text.length*55;if(it.who==='tsar')FS.tsar.st=it.m||'neutral';if(it.fn)it.fn()}
+  const here=it=>box(it.who)&&(!it.alive||it.alive());
+  if(SPK.cur&&(t>=SPK.end||SPK.cur.stay&&!here(SPK.cur))){const it=SPK.cur;SPK.cur=null;SPK.gap=t+500;if(!SPK.q.length)FS.tsar.st='neutral';if(it.stay&&it.gone)it.gone()}
+  while(!SPK.cur&&SPK.q.length&&t>=SPK.gap){const it=SPK.q.shift();if(!here(it)){if(it.grp)SPK.q=SPK.q.filter(x=>x.grp!==it.grp);if(it.gone)it.gone();continue}
+    const d=2600+it.text.length*55;SPK.cur=it;SPK.talk=t+d;SPK.end=it.stay?Infinity:t+d;if(it.who==='tsar')FS.tsar.st=it.m||'neutral';if(it.fn)it.fn()}
   const sb=box('strelets'),tb=box('tsar');
   if(sb&&!hidden){const n=needs();
     if(greet){say('strelets',line(greet));if(n.length)needLine(n);greet=null;prevNeeds=n}
@@ -113,9 +123,10 @@ function faceTick(){if(typeof S==='undefined')return;             // game.js е�
     else prevNeeds=n;
     const idle=t-IDLE.t;   // минута без мыши и клавиш, потом ещё через 2 и 4 минуты
     if(!saying()&&IDLE.n<3&&idle>=6e4+IDLE.n*12e4){IDLE.n++;if(tb&&Math.random()<.4)talk();else if(n.length&&Math.random()<.5)needLine(n);else say('strelets',line('idle'))}}
-  if(tb&&!hidden&&typeof tsarTick==='function')tsarTick();   // поручение дня царь объявляет при входе
+  const lesson=!hidden&&typeof obTick==='function'&&obTick();   // обучение (js/onboarding.js) идёт раньше поручений и болтовни
+  if(tb&&!hidden&&!lesson&&typeof tsarTick==='function')tsarTick();   // поручение дня царь объявляет над картой сам
   // над картой царь иногда заговаривает сам: через 20–40 с на карте, не чаще раза в 3 минуты
-  if(tb&&!hidden){if(!TK.next)TK.next=Math.max(t+2e4+Math.random()*2e4,TK.last+18e4);if(t>=TK.next&&!saying()){talk();TK.next=0;TK.last=t}}else TK.next=0;
+  if(tb&&!hidden&&!lesson){if(!TK.next)TK.next=Math.max(t+2e4+Math.random()*2e4,TK.last+18e4);if(t>=TK.next&&!saying()){talk();TK.next=0;TK.last=t}}else TK.next=0;
   faceSync()}
 setInterval(faceTick,100);
 // экран перерисован — сразу рисуем лица и облачка, без мигания

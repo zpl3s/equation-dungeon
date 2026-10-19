@@ -18,6 +18,7 @@
 .pv canvas{width:320px;height:240px}
 .live{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);line-height:0}
 .cands{display:flex;flex-wrap:wrap;gap:8px}.cand{cursor:pointer;border:2px solid transparent;max-width:100%}.cand:hover{border-color:var(--gold)}.cand.on{border-color:var(--ok)}
+.refs{display:flex;flex-wrap:wrap;gap:10px}.ref{display:flex;flex-direction:column;gap:4px;width:150px;color:inherit;text-decoration:none}.ref img{width:150px;height:150px;object-fit:contain;background:#120d09}.ref:hover span{color:var(--gold)}
 .batch{flex-basis:100%;font:9px 'Press Start 2P',monospace;color:var(--gold);margin-top:6px}
 .regen{border-top:1px dashed #4a3622;padding-top:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px}.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{font:12px ui-monospace,Menlo,monospace;padding:4px 8px}
 .tag{position:absolute;left:6px;top:6px;font:9px 'Press Start 2P',monospace;background:#000b;padding:4px 6px}
@@ -141,6 +142,10 @@ function paintCands(id){const box=$('#cd_'+id);if(!box||!cand[id])return;box.inn
     c.onclick=e=>{const r=c.getBoundingClientRect(),cx=Math.floor((e.clientX-r.left)/r.width*n),cy=Math.floor((e.clientY-r.top)/r.height*n),cw=W/n,ch=H/n,o=document.createElement('canvas');
       o.width=cw;o.height=ch;o.getContext('2d').drawImage(b,cx*cw,cy*ch,cw,ch,0,0,cw,ch);saveSprite(id,o)};
     box.appendChild(c)})}
+// референсы: assets/refs/refs.json (картинки в assets/refs/<id>/, общественное достояние, подписи и ссылки на источник)
+const refs={};
+async function loadRefs(){try{Object.assign(refs,await(await fetch('assets/refs/refs.json?'+Date.now())).json());renderAll()}catch(e){}}
+const refsHTML=id=>refs[id]?`<div class="slot"><div class="px small gold">Референсы для PixelLab (общественное достояние)</div><div class="refs">${refs[id].map(x=>`<a class="ref" target="_blank" rel="noopener" href="${esc(x.url)}" title="${esc(x.use)}"><img src="assets/refs/${id}/${esc(x.file)}" alt=""><span class="small">${esc(x.author)}, ${esc(x.year)}. ${esc(x.title)}</span><span class="small muted">${esc(x.use)}</span></a>`).join('')}</div></div>`:'';
 // заявки на перегенерацию: пишем assets/regen/<id>.json в папку игры, Claude читает их по слову «перегенерируй»; без папки — текст в буфер
 const RG_TAGS=['Смотрит вправо','Слишком тёмный','Слишком светлый','Слишком мелкий','Не страшный','Мало деталей','Нет индивидуальности'];
 const rg={},reqs={}; // rg[id] — что набрано в карточке, reqs[id] — заявка, которая уже лежит в папке
@@ -226,6 +231,7 @@ function cardHTML(id){const a=ART[id],c=CR[id];
   <div class="info"><div class="row"><span class="px small ${c.boss?'gold':''}">${c.boss?'★ ':''}${c.n}</span>${wait(id)?'<span class="wait-mark">ждёт выбора</span>':''}<span class="small muted">файл ${id}.png · холст ${a.size}×${a.size} · ${DIRS[a.dir]}</span></div>
   ${c.lore?`<div class="small muted">${c.lore}</div>`:''}
   ${ART_REF[id]?`<div class="small">Референс (общественное достояние): ${ART_REF[id][0]} — <a class="gold" target="_blank" rel="noopener" href="https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(ART_REF[id][1])}">найти на Викискладе</a></div>`:''}
+  ${refsHTML(id)}
   ${cand[id]&&cand[id].length?`<div class="slot"><div class="px small gold">Варианты от Claude — кликни, какой берём за основу</div><div class="cands" id="cd_${id}"></div>${regenHTML(id)}</div>`:''}
   ${kinds(id).map(k=>slotHTML(id,k)).join('')}
   <div class="small" id="st_${id}"></div></div></div>`}
@@ -357,7 +363,7 @@ document.addEventListener('dragover',e=>{const s=e.target.closest('.slot');if(s)
 document.addEventListener('dragleave',e=>{const s=e.target.closest('.slot');if(s)s.classList.remove('drag')});
 document.addEventListener('drop',e=>{const s=e.target.closest('.slot');if(!s)return;e.preventDefault();s.classList.remove('drag');onFiles(s.dataset.id,s.dataset.k,e.dataTransfer.files)});
 ATL.addEventListener('load',()=>{Object.keys(ART).forEach(id=>paintPreview(id));if(tab==='krem')kMap();if(tab==='bio')bRefresh()});
-(async()=>{if(fsOK){try{dir=await kv('dir')||null;root=await kv('root')||null;if(dir)await scan()}catch(e){dir=null}}renderAll();probe();webCands()})();
+(async()=>{if(fsOK){try{dir=await kv('dir')||null;root=await kv('root')||null;if(dir)await scan()}catch(e){dir=null}}renderAll();probe();webCands();loadRefs()})();
 </script>
 </body>
 </html>

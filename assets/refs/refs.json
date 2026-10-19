@@ -1,0 +1,9 @@
+{
+ "yaga": [
+  {"file": "1.jpg", "title": "Баба-Яга в ступе, иллюстрация к «Василисе Прекрасной»", "author": "Иван Билибин", "year": "1900", "url": "https://commons.wikimedia.org/wiki/File:Bilibin._Baba_Yaga.jpg", "license": "общественное достояние", "use": "облик: фигура в ступе, растрёпанные белые волосы, наряд"},
+  {"file": "2.jpg", "title": "Баба-Яга с вороном, виньетка", "author": "Иван Билибин", "year": "до 1930", "url": "https://commons.wikimedia.org/wiki/File:Baba_Yaga_by_I.Bilibin_(priv.coll).jpg", "license": "общественное достояние", "use": "лицо: крючковатый нос, платок, морщины"}
+ ],
+ "vodyanoy": [
+  {"file": "1.jpg", "title": "Водяной", "author": "Иван Билибин", "year": "1934", "url": "https://commons.wikimedia.org/wiki/File:Vodyanoy.jpg", "license": "общественное достояние", "use": "облик: жабья голова, борода, перепончатые лапы, выглядывает из воды"}
+ ]
+}

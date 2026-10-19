@@ -70,10 +70,11 @@ const faceBox=id=>{const w=id==='tsar'?'tsar':'strelets';
 
 // ---------- речь: очередь реплик, облачко у портрета ----------
 const SPK={q:[],cur:null,end:0,gap:0};
-const say=(who,text,m,grp)=>SPK.q.push({who,text,m,grp});
+const say=(who,text,m,grp,fn)=>SPK.q.push({who,text,m,grp,fn});  // fn — когда реплика зазвучит
 const box=who=>document.querySelector(`.say[data-who="${who}"]`);
 const saying=()=>SPK.cur||SPK.q.length;
-function talk(){const d=line('talk'),g=Math.random();d.forEach(([w,t,m])=>say(w==='t'?'tsar':'strelets',t,m,g));TK.last=Date.now()}
+function talk(click){if(typeof tsarTalk==='function'&&tsarTalk(click))return;  // царь может вместо болтовни напомнить о поручении (js/prikazy.js)
+  const d=line('talk'),g=Math.random();d.forEach(([w,t,m])=>say(w==='t'?'tsar':'strelets',t,m,g));TK.last=Date.now()}
 function needLine(n){say('strelets',line(n[0]))}
 function faceSync(){const t=Date.now();
   document.querySelectorAll('canvas.face').forEach(cv=>{drawFace(cv);cv.classList.toggle('talk',!!SPK.cur&&SPK.cur.who===(cv.dataset.face==='tsar'?'tsar':'strelets'))});
@@ -90,7 +91,7 @@ const IDLE={t:Date.now(),n:0},TK={next:0,last:0};let greet=undefined,prevNeeds=n
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return seenSet();if(now()-seenGet()>3*36e5)greet=greetKind()});
 addEventListener('pagehide',seenSet);
 document.addEventListener('click',e=>{const c=e.target.closest('canvas.face');if(!c||saying())return;
-  if(c.dataset.face==='tsar')talk();else{const n=needs();n.length&&Math.random()<.7?needLine(n):say('strelets',line('idle'))}});
+  if(c.dataset.face==='tsar')talk(true);else{const n=needs();n.length&&Math.random()<.7?needLine(n):say('strelets',line('idle'))}});
 function faceTick(){if(typeof S==='undefined')return;             // game.js ещё грузится
   const t=Date.now(),hidden=document.hidden;
   if(greet===undefined){greet=greetKind();seenSet()}                 // первый тик: игра уже загружена
@@ -104,7 +105,7 @@ function faceTick(){if(typeof S==='undefined')return;             // game.js е�
   // очередь реплик: облачка нет на экране — реплика (и весь её диалог) пропадает
   if(SPK.cur&&t>=SPK.end){SPK.cur=null;SPK.gap=t+500;if(!SPK.q.length)FS.tsar.st='neutral'}
   while(!SPK.cur&&SPK.q.length&&t>=SPK.gap){const it=SPK.q.shift();if(!box(it.who)){if(it.grp)SPK.q=SPK.q.filter(x=>x.grp!==it.grp);continue}
-    SPK.cur=it;SPK.end=t+2600+it.text.length*55;if(it.who==='tsar')FS.tsar.st=it.m||'neutral'}
+    SPK.cur=it;SPK.end=t+2600+it.text.length*55;if(it.who==='tsar')FS.tsar.st=it.m||'neutral';if(it.fn)it.fn()}
   const sb=box('strelets'),tb=box('tsar');
   if(sb&&!hidden){const n=needs();
     if(greet){say('strelets',line(greet));if(n.length)needLine(n);greet=null;prevNeeds=n}
@@ -112,6 +113,7 @@ function faceTick(){if(typeof S==='undefined')return;             // game.js е�
     else prevNeeds=n;
     const idle=t-IDLE.t;   // минута без мыши и клавиш, потом ещё через 2 и 4 минуты
     if(!saying()&&IDLE.n<3&&idle>=6e4+IDLE.n*12e4){IDLE.n++;if(tb&&Math.random()<.4)talk();else if(n.length&&Math.random()<.5)needLine(n);else say('strelets',line('idle'))}}
+  if(tb&&!hidden&&typeof tsarTick==='function')tsarTick();   // поручение дня царь объявляет при входе
   // над картой царь иногда заговаривает сам: через 20–40 с на карте, не чаще раза в 3 минуты
   if(tb&&!hidden){if(!TK.next)TK.next=Math.max(t+2e4+Math.random()*2e4,TK.last+18e4);if(t>=TK.next&&!saying()){talk();TK.next=0;TK.last=t}}else TK.next=0;
   faceSync()}

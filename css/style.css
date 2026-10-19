@@ -105,5 +105,14 @@ th{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);font-
 .beast{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:16px}
 .beast>div{display:flex;gap:10px;background:var(--panel2);border:2px solid var(--line);padding:10px}
 ul{padding-left:22px}li{margin-bottom:6px}
+/* царские приказы (js/prikazy.js) */
+.pzq{font-size:18px;margin:0 0 10px}
+.pzsec{padding:10px 0;border-bottom:1px solid #0006}.pzsec.off{opacity:.75}
+.pzstep{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:4px 0}.pzname{min-width:170px}
+.pzbar{display:flex;flex:1;min-width:190px;gap:10px;align-items:center}.pzbar .bar{flex:1}
+details.pzf{margin-top:12px}details.pzf summary{cursor:pointer;color:var(--gold)}details.pzf ul{margin:8px 0 0}
+svg.dyak{display:block;width:128px;height:128px;background:#0a0706;border:2px solid var(--line)}
+#pzans{width:0}
+@media (max-width:640px){.pz .bubble{flex-basis:100%}}
 @media (max-width:640px){.eq{font-size:22px}h1{font-size:22px}#hero{display:none}.arena{min-height:200px}.bubble{margin-left:0;margin-top:12px}.tut>.row:first-child{flex-wrap:wrap!important}
   .say{font-size:14px}.f-tsar .face{width:64px;height:64px}.f-tsar .say{max-width:calc(100vw - 150px)}}

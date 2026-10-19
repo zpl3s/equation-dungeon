@@ -14,7 +14,7 @@ const today=()=>dkey(gday()),yday=()=>dkey(gday()-1);
 
 // ---------- сохранение и прогресс ----------
 const DEF={xp:0,lvl:1,gold:0,sword:0,armor:0,potions:2,scrolls:3,stats:{},days:{},streak:0,lastDay:'',runs:0,wins:0,bestCombo:0,beaten:[],tut:{},met:{},intro:false,
-  name:'',born:0,day:0,hp:null,sat:100,vig:100,spirit:100,water:0,perun:0,far:-1,fallen:[],remind:'19:00'};
+  name:'',born:0,day:0,hp:null,sat:100,vig:100,spirit:100,water:0,perun:0,far:-1,fallen:[],remind:'19:00',pz:null,wonDay:''};
 const fresh=()=>JSON.parse(JSON.stringify(DEF));
 function load(){let o={};try{o=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}const s=Object.assign(fresh(),o);delete s.unlocked;return s}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -46,7 +46,7 @@ const SURN=['Лыков','Кузьмин','Ершов','Буслаев','Гус�
 // новые поля (и старые сохранения) дополняем полными значениями
 function fill(){if(!S.name)S.name=pick(NAMES)+' '+pick(SURN);if(S.hp==null)S.hp=maxHP();S.hp=Math.min(S.hp,maxHP());if(!S.day)S.day=gday();
   if(!S.born){const k=Object.keys(S.days).sort()[0];S.born=k?Math.min(gday(),Math.round(Date.parse(k+'T00:00Z')/864e5)):gday()}
-  if(S.far<0&&S.runs)S.far=ZONES.reduce((a,_,i)=>zOpen(i)?i:a,0)}
+  if(S.far<0&&S.runs)S.far=ZONES.reduce((a,_,i)=>zOpen(i)?i:a,0);pzFill()}  // царские приказы — js/prikazy.js
 function reborn(){S=Object.assign(fresh(),{fallen:S.fallen,remind:S.remind});fill();save();MB=null}
 function vigDown(n){const was=S.vig;S.vig=Math.max(0,S.vig-n);if(was>=50&&S.vig<50)toast('Стрелец устал и бьёт слабее. Баня поможет')}
 function fright(n){const was=S.spirit;S.spirit=Math.max(0,S.spirit-n);if(was&&!S.spirit)toast('Дух сломлен: нечисть бьёт сильнее. Церковь или капище помогут')}
@@ -57,7 +57,7 @@ function passDays(){const cur=gday(),n=cur-S.day;if(n<=0)return;const was=S.sat;
   S.day=cur;note={n,was,sat:S.sat,saved};save()}
 // last — последний прожитый игровой день
 function die(how,cause,last=gday()){clearInterval(tick);busy=0;run=null;tut=null;
-  const f={name:S.name,days:Math.max(1,last-S.born+1),solved:solved(),lvl:S.lvl,zone:S.far>=0?ZONES[S.far].name:'',how,cause,date:how==='hunger'?dkey(last+1):ldate(now())};
+  const f={name:S.name,days:Math.max(1,last-S.born+1),solved:solved(),lvl:S.lvl,rank:rankName(),zone:S.far>=0?ZONES[S.far].name:'',how,cause,date:how==='hunger'?dkey(last+1):ldate(now())};
   S.fallen.unshift(f);reborn();note=null;show(()=>deadView(f));return true}
 function fall(m){if(S.water){S.water=0;S.hp=Math.round(maxHP()*.5);S.sat=Math.max(S.sat,35);return endRun(false,'water')}
   die('battle',`${m.name}, ${ZONES[run.zi].short}`)}
@@ -79,7 +79,7 @@ const NEEDS=[['sat','Сытость'],['hp','Здоровье'],['vig','Бодр
 function hdr(){const mx=maxHP(),bar=([k,n])=>{const v=k==='hp'?S.hp:S[k],m=k==='hp'?mx:100,low=v/m<.25;
     return`<span class="px small ${low?'bad':''}">${n}</span><div class="bar ${k}"><i style="width:${v/m*100}%"></i></div><span class="small ${low?'bad':'muted'}">${v}${k==='hp'?'/'+mx:''}</span>`};
   return`<div class="panel hdr"><div class="hrow">${faceBox('strelets_face')}
-    <div class="who"><h1>Стрелец и нечисть</h1><div class="px small gold">${S.name} · день ${gday()-S.born+1}</div>${statLine()}</div>
+    <div class="who"><h1>Стрелец и нечисть</h1><div class="px small gold">${S.name}${rankName()?' · '+rankName():''} · день ${gday()-S.born+1}</div>${statLine()}</div>
     <div class="needs">${NEEDS.map(bar).join('')}</div></div>${warns()}</div>`}
 function warns(){const w=[],d=daysLeft(),mx=maxHP();
   if(d<=1)w.push('<span class="bad">Стрелец голодает: если не поест, умрёт в 4 утра.</span> Корчма — в кремле.');
@@ -99,7 +99,7 @@ function show(fn){view=fn;fn();window.scrollTo(0,0)}
 const mapState=()=>({hover:mapSt.hover,sel:mapSt.sel,open:zOpen});
 function mapScreen(){if(!MB&&ATL.complete)buildMap(zOpen);
   app.innerHTML=`${hdr()}${noteHTML()}
-  <div class="panel mapwrap"><canvas id="map" width="${MAP.W}" height="${MAP.H}"></canvas>${faceBox('tsar')}</div><div id="info"></div>
+  <div class="panel mapwrap"><canvas id="map" width="${MAP.W}" height="${MAP.H}"></canvas>${faceBox('tsar')}</div><div id="tsarTask">${tsarPanel()}</div><div id="info"></div>
   <div class="panel"><div class="px small muted" style="margin-bottom:8px">Кремль</div><div class="row">${BLD.map(b=>`<button data-act="bld" data-id="${b.id}">${b.name}</button>`).join('')}</div></div>
   <div class="panel row"><span class="small" style="flex:1;min-width:220px">Стрельца надо навещать каждый день. Напоминание в календаре — ежедневно в</span><input type="time" id="remind" class="tm" value="${S.remind}"><button data-act="ics">Добавить в календарь</button></div>`;
   note=null;$('#remind').onchange=e=>{S.remind=e.target.value||'19:00';save()};
@@ -145,7 +145,7 @@ function buy(id){const it=SHOP[id],c=it.c();if(S.gold<c||it.ok&&!it.ok())return;
 function building(id){const b=BLD.find(x=>x.id===id);let body;
   if(BSHOP[id])body=(BSAY[id]?`<div class="panel story"><p style="margin:0">${BSAY[id]}</p></div>`:'')+shopHTML(BSHOP[id]);
   else if(id==='izba')body=izbaHTML();
-  else if(id==='palaty')body=`<div class="panel story">${INTRO.map(p=>`<p>${p}</p>`).join('')}<p class="muted">Царские поручения появятся в следующем обновлении.</p></div>`;
+  else if(id==='palaty')body=palatyHTML();
   else body='<div class="panel"><p class="muted">Скоро здесь что-то будет.</p></div>';
   app.innerHTML=`${hdr()}<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${b.name}</h1><button data-act="map">← В кремль</button></div><p class="muted" style="margin-top:10px">${b.desc}</p></div>${body}`;paintAll()}
 function izbaHTML(){const tabs=[['lessons','Уроки'],['beast','Бестиарий'],['stats','Летопись'],['fallen','Книга павших']].map(([k,n])=>`<button data-act="izt" data-t="${k}" class="${izTab===k?'on':''}">${n}</button>`).join('');let b='';
@@ -154,8 +154,8 @@ function izbaHTML(){const tabs=[['lessons','Уроки'],['beast','Бестиа�
   else if(izTab==='beast')b=ZONES.map((z,zi)=>zOpen(zi)?`<h2>${z.name}</h2><div class="beast">${[...z.mobs,z.boss].map(id=>S.met[id]!==undefined?
       `<div>${cr(id,64,'')}<div><div class="px small ${CR[id].boss?'gold':''}">${CR[id].n}</div><div class="small">${CR[id].lore}</div><div class="small muted">Побеждено: ${S.met[id]}</div></div></div>`:
       `<div>${cr(id,64,'sil')}<div><div class="px small">???</div><div class="small muted">Ещё не встречалась.</div></div></div>`).join('')}</div>`:'').join('');
-  else if(izTab==='fallen')b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${S.fallen.length?`<div class="tscroll"><table><tr><th>Стрелец</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Дата</th></tr>
-      ${S.fallen.map(f=>`<tr><td>${f.name}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`;
+  else if(izTab==='fallen')b=`<p class="muted">Кот Учёный записывает сюда каждого стрельца, что не вернулся.</p>${S.fallen.length?`<div class="tscroll"><table><tr><th>Стрелец</th><th>Чин</th><th>Прожил</th><th>Решил</th><th>Дошёл до</th><th>Смерть</th><th>Дата</th></tr>
+      ${S.fallen.map(f=>`<tr><td>${f.name}</td><td>${f.rank||'—'}</td><td>${f.days} ${pl(f.days,'день','дня','дней')}</td><td>${f.solved}</td><td>${f.zone||'—'}</td><td>${f.how==='hunger'?'Голод':'Пал в бою: '+f.cause}</td><td>${ru(f.date)}</td></tr>`).join('')}</table></div>`:'<p>Книга пуста. Пусть так и остаётся.</p>'}`;
   else{const days=[...Array(7)].map((_,i)=>dkey(gday()-(6-i)));
     b=`<table><tr><th>Тема</th><th>Верно</th><th>Точность*</th><th>Ср. время</th><th>Рекорд</th><th>Норма</th></tr>${T.map(t=>{const q=S.stats[t.id];if(!q)return'';
       return`<tr><td>${t.name}</td><td>${q.ok}/${q.n}</td><td>${q.r.length?Math.round(acc(q)*100)+'%':'—'}</td><td>${q.ok?Math.round(q.t/q.ok)+' с':'—'}</td><td>${q.best?Math.round(q.best)+' с':'—'}</td><td>${t.par} с</td></tr>`}).join('')}</table>
@@ -172,8 +172,8 @@ function introView(){const lead=S.fallen.length?`Прежний стрелец, 
 function deadView(f){const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`,hunger=f.how==='hunger';
   app.innerHTML=`<div class="panel c story"><h1>${hunger?'Умер от голода':'Пал в бою'}</h1><div class="row c">${cr('strelets',128,'sil','r')}</div>
   <p>Стрелец ${f.name} ${hunger?'не дождался тебя и умер от голода':`пал в бою: ${f.cause}`}. Кот Учёный вписал его имя в Книгу павших.</p>
-  <table>${row('Прожил',f.days+' '+pl(f.days,'день','дня','дней'))}${row('Решил задач',f.solved)}${row('Уровень',f.lvl)}${row('Дошёл до',f.zone||'не выходил за ворота')}${row('Дата смерти',ru(f.date))}</table>
-  <p class="muted" style="margin-top:12px">Всё нажитое пропало: уровень, золото, вещи, открытые пути и освоенные темы.</p>
+  <table>${row('Прожил',f.days+' '+pl(f.days,'день','дня','дней'))}${row('Решил задач',f.solved)}${row('Уровень',f.lvl)}${f.rank?row('Чин',f.rank):''}${row('Дошёл до',f.zone||'не выходил за ворота')}${row('Дата смерти',ru(f.date))}</table>
+  <p class="muted" style="margin-top:12px">Всё нажитое пропало: уровень, золото, вещи, открытые пути, освоенные темы, чин и царские приказы.</p>
   <div class="row c"><button class="main" data-act="newhero">Новый стрелец</button></div></div>`;paintAll()}
 
 // ---------- напоминание: файл календаря с ежедневным событием ----------
@@ -293,7 +293,7 @@ function campView(){app.innerHTML=`<div class="panel c"><h1>Привал</h1><di
   <p>Костёр, сухари, тишина. Отдых: +${run.healed} HP (сейчас ${S.hp}/${maxHP()}).</p><p class="muted">Дальше — ещё две поляны и ${zMastered(run.zi)?'хозяин зоны':'вожак стаи'}. В котомке ${run.gold} зол.: отступишь — пропадут.</p>
   <div class="row c"><button data-act="flee">Отступить в кремль</button><button class="main" data-act="next">Идти дальше</button></div></div>`;paintAll()}
 // how: 'flee' — отступил, 'water' — спасла живая вода. Добыча похода достаётся только победителю
-function endRun(win,how){busy=0;clearInterval(tick);const r=run;run=null;S.runs++;if(win){S.wins++;r.gold+=25;S.gold+=r.gold}
+function endRun(win,how){busy=0;clearInterval(tick);const r=run;run=null;S.runs++;if(win){S.wins++;r.gold+=25;S.gold+=r.gold;S.wonDay=today()}  // день победы: в палатах платят жалованье
   S.bestCombo=Math.max(S.bestCombo,r.maxc);if(S.lastDay!==today()){S.streak=S.lastDay===yday()?S.streak+1:1;S.lastDay=today()}save();if(r.newZone)MB=null;
   const row=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`,water=how==='water';
   show(()=>{app.innerHTML=`<div class="panel c"><h1>${win?'С добычей домой':water?'Живая вода':'Пришлось отступить'}</h1><div class="row c">${cr(win||water?'strelets':ZONES[r.zi].boss,128)}</div>

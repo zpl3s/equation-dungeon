@@ -18,6 +18,8 @@
 .pv canvas{width:320px;height:240px}
 .live{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);line-height:0}
 .cands{display:flex;flex-wrap:wrap;gap:8px}.cand{cursor:pointer;border:2px solid transparent;max-width:100%}.cand:hover{border-color:var(--gold)}.cand.on{border-color:var(--ok)}
+.batch{flex-basis:100%;font:9px 'Press Start 2P',monospace;color:var(--gold);margin-top:6px}
+.regen{border-top:1px dashed #4a3622;padding-top:8px;margin-top:4px;display:flex;flex-direction:column;gap:6px}.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{font:12px ui-monospace,Menlo,monospace;padding:4px 8px}
 .tag{position:absolute;left:6px;top:6px;font:9px 'Press Start 2P',monospace;background:#000b;padding:4px 6px}
 .done .tag{color:var(--ok)}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
@@ -54,6 +56,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
     <li><b>Если генерирую я</b> (через PixelLab MCP), все варианты появятся прямо в карточке в блоке «Варианты от Claude», а карточка подсветится золотым. Кликни вариант, который берём за основу. Если существо смотрит не туда, нажми «⇄ Отразить»: нечисть должна смотреть влево, на стрельца.</li>
     <li><b>Кремль.</b> Во вкладке «Кремль» лежат варианты зданий, стен, башен и земли. Клик по варианту — это основа, она сохраняется в <code>assets/buildings</code> и сразу видна на карте кремля сверху. У земли отмечай несколько плиток и жми «Сохранить набор»: игра будет чередовать их.</li>
     <li><b>Биомы.</b> Во вкладке «Биомы» — земля, вода, деревья, предметы и фон боя зоны. У земли, воды, деревьев и предметов отметь несколько вариантов и жми «Сохранить набор»: игра будет чередовать их. Фон боя — клик по варианту. Основа сохраняется в <code>assets/biomes</code>, карта сверху сразу показывает результат.</li>
+    <li><b>Не понравились варианты?</b> В карточке нечисти, под вариантами, отметь причины и напиши, что хочешь вместо. «Перегенерировать» кладёт заявку в <code>assets/regen</code> (нужна подключённая папка, без неё текст копируется в буфер). Напиши мне «перегенерируй»: я сделаю новую пачку из 16 вариантов, она добавится ниже старых.</li>
     <li>Выбрал основы — напиши мне «выбрал»: я закоммичу их, и они появятся в игре на сайте.</li>
   </ol></div>
 
@@ -105,6 +108,7 @@ async function scan(){granted=await perm(false);if(!granted)return;for await(con
     for await(const[id,h]of cd.entries()){if(h.kind!=='directory'||!ART[id]&&!KREM[id]&&!BIOME[id])continue;const list=[];
       for await(const[n,f]of h.entries())if(/\.png$/i.test(n))list.push([n,await createImageBitmap(await f.getFile())]);
       cand[id]=list.sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(x=>x[1])}}catch(e){}
+    await loadReqs();
     try{const bd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('buildings');
       for await(const[n,f]of bd.entries()){const m=n.match(/^(.+)\.png$/);if(m&&KREM[m[1]])setKrem(m[1],canvasOf(await createImageBitmap(await f.getFile())))}}catch(e){}
     try{const bd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('biomes');
@@ -129,13 +133,36 @@ function paintPreview(id){const cv=$('#pv_'+id);if(!cv)return;const g=cv.getCont
 const spr=id=>$('#c_'+id+' canvas[data-cr]');
 // варианты от Claude: лист рисуем сеткой, кликнутый вариант становится основой
 function paintCands(id){const box=$('#cd_'+id);if(!box||!cand[id])return;box.innerHTML='';const need=ART[id].size;
-  cand[id].forEach(b=>{const W=b.width,H=b.height,n=Math.max(W,H)>need*1.6?([8,4,2].find(k=>W===H&&W%k===0&&W/k>=need*.6&&W/k<=need*1.6)||1):1,
+  cand[id].forEach((b,i)=>{if(cand[id].length>16&&i%16===0){const l=document.createElement('div');l.className='batch';l.textContent='Пачка '+(i/16+1);box.appendChild(l)}
+    const W=b.width,H=b.height,n=Math.max(W,H)>need*1.6?([8,4,2].find(k=>W===H&&W%k===0&&W/k>=need*.6&&W/k<=need*1.6)||1):1,
     sc=Math.max(1,Math.floor((n>1?384:128)/Math.max(W,H))),c=document.createElement('canvas'),g=c.getContext('2d');c.width=W*sc;c.height=H*sc;c.className='cand';
     g.imageSmoothingEnabled=false;g.fillStyle='#120d09';g.fillRect(0,0,c.width,c.height);g.drawImage(b,0,0,c.width,c.height);
     if(n>1){g.strokeStyle='#5a4128';for(let k=1;k<n;k++){const x=Math.round(k*c.width/n)+.5,y=Math.round(k*c.height/n)+.5;g.beginPath();g.moveTo(x,0);g.lineTo(x,c.height);g.moveTo(0,y);g.lineTo(c.width,y);g.stroke()}}
     c.onclick=e=>{const r=c.getBoundingClientRect(),cx=Math.floor((e.clientX-r.left)/r.width*n),cy=Math.floor((e.clientY-r.top)/r.height*n),cw=W/n,ch=H/n,o=document.createElement('canvas');
       o.width=cw;o.height=ch;o.getContext('2d').drawImage(b,cx*cw,cy*ch,cw,ch,0,0,cw,ch);saveSprite(id,o)};
     box.appendChild(c)})}
+// заявки на перегенерацию: пишем assets/regen/<id>.json в папку игры, Claude читает их по слову «перегенерируй»; без папки — текст в буфер
+const RG_TAGS=['Смотрит вправо','Слишком тёмный','Слишком светлый','Слишком мелкий','Не страшный','Мало деталей','Нет индивидуальности'];
+const rg={},reqs={}; // rg[id] — что набрано в карточке, reqs[id] — заявка, которая уже лежит в папке
+const rgOf=id=>rg[id]||(rg[id]={tags:[],text:''});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function regenHTML(id){const s=rgOf(id),q=reqs[id];
+  return`<div class="regen"><div class="px small gold">Не нравится? Перегенерировать</div>
+  <div class="chips">${RG_TAGS.map(t=>`<button class="chip ${s.tags.includes(t)?'on':''}" data-rgtag="${id}" data-t="${t}">${t}</button>`).join('')}</div>
+  <textarea rows="2" data-rgtext="${id}" placeholder="Что не нравится и что хочешь вместо, например: «нужен пятачок вместо носа и козьи ноги»">${esc(s.text)}</textarea>
+  <div class="row"><button class="main" data-regen="${id}">${q?'Обновить заявку':'Перегенерировать'}</button><span class="small muted">новая пачка из 16 вариантов (10 генераций) добавится к этим</span></div>
+  ${q?`<div class="small"><span class="ok-mark">заявка ждёт Claude</span> ${esc([...q.tags,q.note].filter(Boolean).join('. '))} — напиши ему «перегенерируй»</div>`:''}
+  <div class="small" id="rgs_${id}"></div></div>`}
+async function regenSend(id){const s=rgOf(id),note=s.text.trim(),st=$('#rgs_'+id);
+  if(!s.tags.length&&!note){st.innerHTML='<span class="bad">Отметь причину или напиши, что не нравится</span>';return}
+  const req={id,name:CR[id].n,at:new Date().toISOString(),tags:[...s.tags],note,prompt:ART[id].p,variants:cand[id]?cand[id].length:0};
+  try{if(!root)throw 0;const o={mode:'readwrite'};if(await root.queryPermission(o)!=='granted'&&await root.requestPermission(o)!=='granted')throw 0;
+    const rd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('regen',{create:true}),w=await(await rd.getFileHandle(id+'.json',{create:true})).createWritable();
+    await w.write(JSON.stringify(req,null,1));await w.close();reqs[id]=req;rg[id]={tags:[],text:''};renderCard(id);toast('Заявка записана в assets/regen. Напиши Claude «перегенерируй»')}
+  catch(e){await copy(`Перегенерировать ${id} (${CR[id].n}). ${[...s.tags,note].filter(Boolean).join('. ')}`);st.innerHTML='Папка игры не подключена, поэтому текст заявки скопирован. Вставь его в чат Claude.'}}
+async function loadReqs(){Object.keys(reqs).forEach(k=>delete reqs[k]);if(!root)return;
+  try{const rd=await(await root.getDirectoryHandle('assets')).getDirectoryHandle('regen');
+    for await(const[n,f]of rd.entries()){const m=n.match(/^(.+)\.json$/);if(m&&ART[m[1]])try{reqs[m[1]]=JSON.parse(await(await f.getFile()).text())}catch(e){}}}catch(e){}}
 // отразить спрайт и все анимации (каждый кадр по отдельности)
 async function flip(id){try{for(const n of kinds(id).map(k=>key(id,k)).filter(n=>pic[n])){const s=pic[n],f=s.height,fr=Math.max(1,Math.round(s.width/f)),c=document.createElement('canvas');
     c.width=fr*f;c.height=f;const g=c.getContext('2d');for(let i=0;i<fr;i++){g.save();g.translate((i+1)*f,0);g.scale(-1,1);g.drawImage(s,i*f,0,f,f,0,0,f,f);g.restore()}
@@ -199,7 +226,7 @@ function cardHTML(id){const a=ART[id],c=CR[id];
   <div class="info"><div class="row"><span class="px small ${c.boss?'gold':''}">${c.boss?'★ ':''}${c.n}</span>${wait(id)?'<span class="wait-mark">ждёт выбора</span>':''}<span class="small muted">файл ${id}.png · холст ${a.size}×${a.size} · ${DIRS[a.dir]}</span></div>
   ${c.lore?`<div class="small muted">${c.lore}</div>`:''}
   ${ART_REF[id]?`<div class="small">Референс (общественное достояние): ${ART_REF[id][0]} — <a class="gold" target="_blank" rel="noopener" href="https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(ART_REF[id][1])}">найти на Викискладе</a></div>`:''}
-  ${cand[id]&&cand[id].length?`<div class="slot"><div class="px small gold">Варианты от Claude — кликни, какой берём за основу</div><div class="cands" id="cd_${id}"></div></div>`:''}
+  ${cand[id]&&cand[id].length?`<div class="slot"><div class="px small gold">Варианты от Claude — кликни, какой берём за основу</div><div class="cands" id="cd_${id}"></div>${regenHTML(id)}</div>`:''}
   ${kinds(id).map(k=>slotHTML(id,k)).join('')}
   <div class="small" id="st_${id}"></div></div></div>`}
 function renderCard(id){const el=$('#c_'+id);if(!el)return;const st=$('#st_'+id).innerHTML;el.outerHTML=cardHTML(id);$('#st_'+id).innerHTML=st;paintPreview(id);paintCands(id)}
@@ -321,9 +348,11 @@ document.addEventListener('click',e=>{const t=e.target,d=t.dataset;
   else if(d.kcopy)copy(kremText(d.kcopy));else if(d.kflip)kFlip(d.kflip);else if(d.kset)kSaveSet(d.kset);
   else if(d.bcopy)copy(BIOME[d.bcopy].p);else if(d.bset)bSaveSet(d.bset);
   else if(d.copy)copy(textFor(d.copy,d.k));else if(t.hasAttribute('data-neg'))copy(ART_NEG);else if(t.hasAttribute('data-pick'))pickDir();
+  else if(d.rgtag){const s=rgOf(d.rgtag),i=s.tags.indexOf(d.t);if(i<0)s.tags.push(d.t);else s.tags.splice(i,1);t.classList.toggle('on',i<0)}else if(d.regen)regenSend(d.regen);
   else if(d.flip)flip(d.flip);else if(t.hasAttribute('data-grant'))perm(true).then(async()=>{await scan();renderAll()});
   else if(d.fx){const c=spr(d.id);if(!c)return;if(d.fx==='atk')attackFx(c);else if(d.fx==='hurt')hurtFx(c);else if(d.fx==='spawn')spawnFx(c);else{c._die=performance.now();setTimeout(()=>{c._die=0},1500)}}else if(d.f){filter=d.f;renderAll()}});
 document.addEventListener('change',e=>{const d=e.target.dataset;if(d.up)onFiles(d.up,d.k,e.target.files)});
+document.addEventListener('input',e=>{const d=e.target.dataset;if(d.rgtext)rgOf(d.rgtext).text=e.target.value});
 document.addEventListener('dragover',e=>{const s=e.target.closest('.slot');if(s){e.preventDefault();s.classList.add('drag')}});
 document.addEventListener('dragleave',e=>{const s=e.target.closest('.slot');if(s)s.classList.remove('drag')});
 document.addEventListener('drop',e=>{const s=e.target.closest('.slot');if(!s)return;e.preventDefault();s.classList.remove('drag');onFiles(s.dataset.id,s.dataset.k,e.dataTransfer.files)});

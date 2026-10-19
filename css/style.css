@@ -29,7 +29,7 @@ canvas{image-rendering:pixelated;display:block}
 @keyframes bob{50%{transform:translateY(-4px)}}
 .hdr h1{font-size:26px;margin:0 0 4px}
 /* шапка: портрет, имя, четыре нужды */
-.hrow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.hrow{display:flex;gap:12px;align-items:flex-start;flex-wrap:nowrap}
 /* лица (js/faces.js): стрелец в шапке, царь в углу карты; облачко реплики справа от портрета */
 .fbox{position:relative;flex:0 0 auto}
 .face{width:128px;height:128px;background:#0a0706;border:2px solid var(--line);cursor:pointer}
@@ -40,12 +40,17 @@ canvas{image-rendering:pixelated;display:block}
 .say.on{opacity:1;visibility:visible}
 .say::before,.say::after{content:'';position:absolute;top:16px;border-style:solid;border-color:transparent;border-width:7px 12px 7px 0}
 .say::before{left:-14px;border-right-color:#8a6a3a}.say::after{left:-10px;border-right-color:#efe3c8}
+/* стрелец в колонке говорит под лицом, стрелкой вверх: шкалы нужд справа от лица остаются видны */
+.f-strelets .say{left:0;top:calc(100% + 12px);max-width:min(340px,calc(100vw - 44px))}
+.f-strelets .say::before{left:18px;top:-12px;border-width:0 8px 12px;border-color:transparent transparent #8a6a3a}
+.f-strelets .say::after{left:20px;top:-9px;border-width:0 6px 10px;border-color:transparent transparent #efe3c8}
 .mapwrap{position:relative}
 .f-tsar{position:absolute;left:10px;top:10px;z-index:2}
 .f-tsar .face{border-color:#8a6a3a;box-shadow:3px 3px 0 #0008}
-.who{flex:1;min-width:230px}
-.needs{flex:1;min-width:260px;display:grid;grid-template-columns:auto minmax(60px,1fr) auto auto;gap:5px 8px;align-items:center}
-.needs .nw{font-size:13px;line-height:1.2;max-width:210px}
+.who{margin-top:6px}.who>div{line-height:1.4}.who .nw{font-size:13px;line-height:1.25;margin-top:2px}
+/* четыре нужды справа от лица: подпись и число над шкалой */
+.needs{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;align-self:stretch}
+.need .nl{display:flex;justify-content:space-between;gap:6px;line-height:1.3}.need .bar{height:10px;min-width:0}
 .needs .bar{min-width:70px}
 .bar.sat>i{background:var(--gold)}.bar.vig>i{background:var(--xp)}.bar.spirit>i{background:#8a6ac8}
 .warn{margin-top:10px;padding-top:8px;border-top:1px solid #0006;font-size:14px}
@@ -130,15 +135,22 @@ svg.dyak{display:block;width:128px;height:128px;background:#0a0706;border:2px so
 @keyframes hlp{50%{opacity:.3;transform:scale(1.07)}}
 /* ⚙ в шапке: напоминание в календаре */
 .hdr{position:relative}
-.gear{position:absolute;right:4px;top:2px;font:18px/1 Georgia,serif;padding:4px 7px}
-.gearm{position:absolute;right:4px;top:40px;z-index:6;width:min(360px,calc(100vw - 40px));background:var(--panel2);border:2px solid var(--line);padding:12px;box-shadow:3px 3px 0 #0008}
+.gear{font:16px/1 Georgia,serif;padding:2px 6px}
+.gearm{position:absolute;left:8px;top:150px;z-index:6;width:min(360px,calc(100vw - 40px));background:var(--panel2);border:2px solid var(--line);padding:12px;box-shadow:3px 3px 0 #0008}
 .gearm[hidden]{display:none}
-.needs{margin-right:30px}
+/* колонка экрана: говорящий (Кот, царь, дьяк) или здание; список услуг здания при наведении на карте */
+.spk{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}.spk p{margin:0}
+.spk .face,.spk svg.dyak{width:192px;height:192px}.bcol h2{font-size:21px}.spk .pzbar{flex:none;width:100%;min-width:0}
+.bcol{align-items:stretch;text-align:left}.bpic{display:block;width:100%;flex:1 1 auto;min-height:0}
+.blist{padding-left:18px;margin:6px 0 8px}.blist li{margin-bottom:6px}
+@media (max-width:899px){.scr{display:flex;flex-direction:column}.lcol,.mcol{display:contents}.scr>.mapwrap{order:1}.scr .info{order:2}.solve .hdr{display:none}
+  .spk{flex-direction:row;flex-wrap:wrap;justify-content:center}.spk .face{width:96px;height:96px}.bpic{height:160px}}
 /* вкладки, панель зоны, плотные таблицы, всплывающее окно */
 .tabs{gap:6px;margin-bottom:10px}.tabs button{padding:7px 9px}button.dim{opacity:.6}
 .zinfo h2{margin-bottom:6px}.zinfo .muted.small{margin-bottom:8px}
 .zmobs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}.zmobs canvas{margin:0 auto}.zmobs .small{font-size:13px;line-height:1.25}
-.topic2{padding:5px 0;border-bottom:1px solid #0006}
+.topic2{display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #0006}.topic2 .bar{flex:1;min-width:40px}
+.zinfo h2{font-size:19px}.zinfo .row button{padding:7px 9px}
 table.tight td,table.tight th{padding:4px 6px}
 .modal{position:fixed;inset:0;z-index:20;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal>.panel{max-width:760px;width:100%;max-height:calc(100vh - 32px);overflow:auto;margin:0}
@@ -151,31 +163,38 @@ table.tight td,table.tight th{padding:4px 6px}
 @media (max-width:640px){.btitle .row{flex-wrap:wrap!important}}
 @media (max-width:640px){.pz .bubble{flex-basis:100%}}
 /* компьютер: всё на одном экране без прокрутки. Шапка и заголовки — по содержимому, главный блок (.fill) забирает остаток высоты */
+/* компьютер: экран заполнен целиком, без пустот и прокрутки. Слева колонка (стрелец и панель экрана), справа главное до краёв; шире 1920 — по центру */
 @media (min-width:900px){
-  #app{max-width:1760px;height:100vh;display:flex;flex-direction:column;padding:12px 16px}
-  #app>*{flex:none}#app>.fill{flex:1 1 auto;min-height:0}
-  .panel{margin-bottom:12px}
-  .hdr{padding:8px 14px}.hdr .hrow{flex-wrap:nowrap}.needs{max-width:560px}
-  .hdr .warn{margin-top:4px;padding-top:4px}
-  .mapscr{display:flex;gap:12px}
-  .mapbox{flex:1;min-width:0;display:flex;justify-content:center;align-items:flex-start}.mapbox .mapwrap{margin:0;flex:none}
-  .side{flex:0 0 clamp(330px,25vw,430px);min-height:0}.side>.panel{margin:0;max-height:100%}
-  .btwrap{width:100%;max-width:1240px;margin:0 auto;display:flex;flex-direction:column}
-  .btwrap .arena{flex:1 1 auto;min-height:200px;max-height:480px}.btwrap .btq{margin-bottom:0}
+  #app{max-width:1920px;height:100vh;display:flex;flex-direction:column;gap:6px;padding:6px}
+  #app>*{flex:none}#app>.fill,#app>.scr{flex:1 1 auto;min-height:0}
+  .panel{margin:0}
+  .scr{display:flex;gap:6px}
+  .lcol{flex:0 0 clamp(340px,23vw,420px);min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+  .mcol{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+  .lcol>:last-child,.mcol>:last-child{flex:1 1 auto;min-height:0}
+  .info{display:flex}.info>.panel{flex:1;min-height:0}
+  .scr>.mapwrap{flex:1 1 auto;min-width:0;min-height:0}#map{width:auto}
+  .hdr{padding:8px 12px}
+  .spk{justify-content:center}.bcol{justify-content:flex-start}
+  .mid{display:flex;flex-direction:column;justify-content:center}
+  /* речь говорящего — пергамент на всю панель справа от колонки */
+  .mcol .tut{display:flex;flex-direction:column}.mcol .tut>.bubble{flex:1 1 auto;margin:0;min-height:0}.mcol .tut>.bubble::before{display:none}
+  .btwrap{display:flex;flex-direction:column;gap:6px}.btwrap .arena{flex:1 1 auto;min-height:200px}
   .btcols{display:flex;gap:18px;align-items:flex-start}.btmain{flex:1;min-width:0}.btcols #sol{flex:1;min-width:0}.btcols .sol{margin-top:0}
   /* решение после промаха — поверх арены, шаги в две колонки */
   .arena>#sol{position:absolute;left:8px;top:8px;bottom:8px;width:min(64%,800px);z-index:5}.arena>#sol .sol{margin:0;height:100%;background:#efe3c8;color:#2a1c10;border:2px solid #8a6a3a;border-left:3px solid var(--gold);overflow:hidden;padding:10px 40px 10px 16px}
   .arena>#sol.wide{width:auto;right:8px}.arena>#sol.wide ol{column-count:3}
   .arena>#sol.tight ol{font-size:15px}.arena>#sol.tight .why{font-size:13px;margin-bottom:4px}.arena>#sol.tight li{margin-bottom:2px}
   .arena>#sol ol{column-count:2;column-gap:32px}.arena>#sol li{break-inside:avoid}.arena>#sol .why,.arena>#sol .muted{color:#6b5536}
-  .kapcols{display:grid;grid-template-columns:minmax(250px,1fr) minmax(0,2.6fr);gap:12px;align-items:start}.kapcols>.panel{margin:0}.kapcols .shop{grid-template-columns:1fr}
+  .kapcols{display:grid;grid-template-columns:minmax(250px,1fr) minmax(0,2.8fr);gap:6px}.kapcols .shop{grid-template-columns:1fr}
   .beast{margin-bottom:0}
   .bart{display:grid;grid-template-columns:240px minmax(0,1fr);gap:28px;margin-top:10px}
   .bcols{column-count:3;column-gap:28px}.bcols>h3:first-child{margin-top:0}.bcols p,.bcols li{break-inside:avoid}
   .izstats{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:start}.izstats h2{font-size:20px}
-  .pzcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,440px);gap:12px;align-items:start}.pzcols>.panel{margin:0}
-  .pzhall{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px;align-items:start}.pzhall>.panel{margin:0}
-  .dead.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:28px;align-items:start}
+  .pzcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,440px);gap:6px}
+  .pzhall{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:6px}
+  .dead{display:flex;flex-direction:column;justify-content:center}
+  .dead.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:28px;align-content:center}
 }
 @media (max-width:640px){.eq{font-size:22px}h1{font-size:22px}#hero{display:none}.arena{min-height:200px}.bubble{margin-left:0;margin-top:12px}.tut>.row:first-child{flex-wrap:wrap!important}
   .say{font-size:14px}.f-tsar .face{width:64px;height:64px}.f-tsar .say{max-width:calc(100vw - 150px)}}

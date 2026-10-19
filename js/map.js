@@ -7,6 +7,11 @@ function drawA(g,name,x,y,sc=1){const a=ATLAS[name];if(!a||!ATL.complete)return;
 const VAR={};const variants=p=>VAR[p]||(VAR[p]=Object.keys(ATLAS).filter(k=>k.startsWith(p+'_')));
 const rnd=seed=>{let s=(seed>>>0)||1;return()=>(s=(s*1664525+1013904223)>>>0)/4294967296};
 const hash=(i,j)=>((i*73856093)^(j*19349663)^0x5bd1e995)>>>0;
+// жребий клетки — от её места относительно кремля, а не от номера в сетке: сетка растёт с окном, а лес остаётся тем же (при C = 24 — как было)
+const hc=(i,j)=>hash(i-MAP.C+24,j-MAP.C+24);
+// окно карты: холст в пикселях игры и сетка, которой хватает до краёв (с запасом под деревья у нижнего края). true — размер сменился, карту надо собрать заново
+function mapView(w,h){w=Math.max(200,Math.round(w));h=Math.max(150,Math.round(h));if(w===MAP.W&&h===MAP.H)return false;
+  MAP.W=w;MAP.H=h;MAP.C=Math.max(24,Math.ceil(((w/2+60)/(MAP.TW/2)+(h/2+120)/(MAP.TH/2))/2)+1);MAP.N=2*MAP.C+1;return true}
 const gp=(i,j)=>[MAP.W/2+(i-j)*MAP.TW/2,MAP.H/2+(i+j-2*MAP.C)*MAP.TH/2]; // точка сетки → экран
 const onScreen=(x,y,m=60)=>x>-m&&x<MAP.W+m&&y>-m&&y<MAP.H+m*2;
 const RAY=k=>Math.PI/2+k*Math.PI/4; // направление на зону k (0 — вниз, дальше по часовой)
@@ -33,7 +38,7 @@ const setKrem=(id,c)=>{KIM[id]=c?prepK(id,c):false}; // мастерская п�
 function drawK(g,k,x,y,flip,dy=0){x=Math.round(x);y=Math.round(y-k.ay+dy);if(!flip)return g.drawImage(k.im,x-k.ax,y);g.save();g.translate(x,0);g.scale(-1,1);g.drawImage(k.im,-k.ax,y);g.restore()}
 
 function cellInfo(i,j){
-  const dx=i+.5-MAP.C,dy=j+.5-MAP.C,R=MAP.R,ax=Math.abs(dx),ay=Math.abs(dy),m=Math.max(ax,ay),r=Math.hypot(dx,dy),h=rnd(hash(i,j))();
+  const dx=i+.5-MAP.C,dy=j+.5-MAP.C,R=MAP.R,ax=Math.abs(dx),ay=Math.abs(dy),m=Math.max(ax,ay),r=Math.hypot(dx,dy),h=rnd(hc(i,j))();
   if(m<R)return{z:-1,g:ax<1||ay<1||ax<2.6&&ay<2.6?'most':'kreml'}; // внутри стен: мостовая от ворот и соборная площадь в центре
   if(m<R+2.5){if(dx<0&&dy>0&&Math.abs(dx+dy)<2.6+h*.8)return{z:-2,g:'water'}; // речка от Омута к левой башне, у неё баня
     return{z:-2,g:ax<1||ay<1?'road':'posad'}}                     // посад вокруг стен, дороги из ворот
@@ -50,7 +55,7 @@ function cellInfo(i,j){
 let MB=null; // {cells, base canvas, rects}
 function buildMap(open){
   const cells=[],objs=[],rects=[];
-  for(let i=0;i<MAP.N;i++)for(let j=0;j<MAP.N;j++){const c=cellInfo(i,j),r=rnd(hash(i,j)*7+3);c.i=i;c.j=j;c.v=r();c.r=r;cells.push(c)}
+  for(let i=0;i<MAP.N;i++)for(let j=0;j<MAP.N;j++){const c=cellInfo(i,j),r=rnd(hc(i,j)*7+3);c.i=i;c.j=j;c.v=r();c.r=r;cells.push(c)}
   const V=vertices(cells),N1=MAP.N+1,corn=c=>{const o=c.i*N1+c.j;return[V[o],V[o+N1],V[o+1],V[o+N1+1]]};
   cells.forEach(c=>{const r=c.r;
     if(c.g==='road'||c.g==='water'||c.z===-1)return;
@@ -78,8 +83,8 @@ function buildMap(open){
   g.fillStyle='#07060a';g.fillRect(0,0,MAP.W,MAP.H);
   cells.forEach(c=>{const[x,y]=gp(c.i,c.j);if(onScreen(x,y))ground(g,c,x,y,corn(c))});
   objs.sort((a,b)=>a.y-b.y).forEach(o=>o.f(g));
-  cells.forEach(c=>{if(c.z>=0&&!open(c.z))diamond(g,c.i,c.j,'rgba(6,4,8,.66)')});
-  const vg=g.createRadialGradient(MAP.W/2,MAP.H/2,MAP.H*.42,MAP.W/2,MAP.H/2,MAP.W*.62);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(4,3,6,.85)');
+  cells.forEach(c=>{if(c.z>=0&&!open(c.z)&&onScreen(...gp(c.i,c.j)))diamond(g,c.i,c.j,'rgba(6,4,8,.66)')});
+  const D=Math.hypot(MAP.W,MAP.H)/2,vg=g.createRadialGradient(MAP.W/2,MAP.H/2,D*.5,MAP.W/2,MAP.H/2,D*1.02);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(4,3,6,.8)');
   g.fillStyle=vg;g.fillRect(0,0,MAP.W,MAP.H);
   MB={cells,base:cv,rects};
 }
@@ -91,7 +96,7 @@ function plain(g,t,v,x,y){const B=BIOMES[t],b=t==='water'?bimg(BIO_WATER):B&&bim
 // так граница зон идёт плавной линией, а не лесенкой по клеткам. Рядом дорога — дорога, чтобы поле не съедало тропы
 const VNB=[[-1,-1,2],[0,-1,2],[-1,0,2],[0,0,2],[-2,-1,1],[-2,0,1],[1,-1,1],[1,0,1],[-1,-2,1],[0,-2,1],[-1,1,1],[0,1,1]];
 function vertices(cells){const N=MAP.N,V=[];
-  for(let i=0;i<=N;i++)for(let j=0;j<=N;j++){const n={};let best=null,bn=0,road=false;const r=rnd(hash(i,j)*13+5);
+  for(let i=0;i<=N;i++)for(let j=0;j<=N;j++){const n={};let best=null,bn=0,road=false;const r=rnd(hc(i,j)*13+5);
     for(const[da,db,w]of VNB){const a=i+da,b=j+db;if(a<0||b<0||a>=N||b>=N)continue;const t=cells[a*N+b].g;if(w>1&&t==='road')road=true;n[t]=(n[t]||0)+w}
     if(!road)for(const t in n)if(n[t]>bn||n[t]===bn&&r()<.5){best=t;bn=n[t]}
     V.push(road?'road':best)}
@@ -113,10 +118,10 @@ function bioLand(g,B,c,x,y,fm,S,own){const k=bimg(B.ground),X=x-MAP.TW/2,tile=(v
   const order=Object.keys(n).map(Number).sort((a,b)=>n[b]-n[a]);tile(order[0],fm);
   for(const v of order.slice(1))tile(v,vs.reduce((m,w,q)=>fm&8>>q&&w===v?m|8>>q:m,0))}
 // вид плитки у вершины: плавный шум с шагом в 3 клетки, поделённый на n видов
-function bioVar(i,j,n){const s=3,a=Math.floor(i/s),b=Math.floor(j/s),fx=i/s-a,fy=j/s-b,h=(p,q)=>rnd(hash(p,q)*31+17)(),l=(u,v,t)=>u+(v-u)*t*t*(3-2*t);
+function bioVar(i,j,n){i+=24-MAP.C;j+=24-MAP.C;const s=3,a=Math.floor(i/s),b=Math.floor(j/s),fx=i/s-a,fy=j/s-b,h=(p,q)=>rnd(hash(p,q)*31+17)(),l=(u,v,t)=>u+(v-u)*t*t*(3-2*t);
   return Math.min(n-1,Math.floor(l(l(h(a,b),h(a+1,b),fx),l(h(a,b+1),h(a+1,b+1),fx),fy)*n))}
 // предмет биома на клетке по её собственному жребию (так видно, что стоит у соседей): картинка, кадр, отражение, сдвиг; null — пусто
-function bioPick(i,j,bo){const r=rnd(hash(i,j)*11+7),q=bo.find(([,p])=>r()<p);if(!q)return null;const k=q[0];return{k,f:k.fr[Math.floor(r()*k.fr.length)],fl:r()<.5,ox:(r()-.5)*16,oy:(r()-.5)*7}}
+function bioPick(i,j,bo){const r=rnd(hc(i,j)*11+7),q=bo.find(([,p])=>r()<p);if(!q)return null;const k=q[0];return{k,f:k.fr[Math.floor(r()*k.fr.length)],fl:r()<.5,ox:(r()-.5)*16,oy:(r()-.5)*7}}
 // предметы биома, у которых выбрана основа: [картинка, вероятность на клетку]; null — ни одной
 function bioObjs(B){if(!B||!B.objs)return null;const o=Object.entries(B.objs).map(([id,p])=>[bimg(id),p]).filter(q=>q[0]);return o.length?o:null}
 // кадр предмета по якорю (низ видимой части по центру)
@@ -153,7 +158,7 @@ function zonePlate(zi){const g=MB.base.getContext('2d'),[x,y]=zoneLabelPos(zi),L
 // рисует карту на видимом холсте: основа + подсветка + подписи; st.hl — зона-цель обучения
 function paintMap(cv,st){const g=cv.getContext('2d');g.imageSmoothingEnabled=false;g.drawImage(MB.base,0,0);
   const hz=st.hover&&st.hover.type==='zone'?st.hover.zi:-9,sz=st.sel&&st.sel.type==='zone'?st.sel.zi:-9,lz=st.hl!=null?st.hl:-9;
-  MB.cells.forEach(c=>{if(c.z===hz||c.z===sz||c.z===lz)diamond(g,c.i,c.j,c.z===lz?'rgba(255,214,120,.2)':c.z===sz?'rgba(255,200,120,.16)':'rgba(255,220,160,.1)')});
+  MB.cells.forEach(c=>{if((c.z===hz||c.z===sz||c.z===lz)&&onScreen(...gp(c.i,c.j),30))diamond(g,c.i,c.j,c.z===lz?'rgba(255,214,120,.2)':c.z===sz?'rgba(255,200,120,.16)':'rgba(255,220,160,.1)')});
   ZONES.forEach((z,zi)=>{const[x,y]=zoneLabelPos(zi);plate(g,x,y,zoneLines(zi,st.open(zi)),zi===hz||zi===sz||zi===lz)});
   // здание под мышью: рамка и плашка «название · зачем»
   const hb=st.hover&&st.hover.type==='bld'?st.hover.id:null;
@@ -169,10 +174,11 @@ function paintArena(cv,zi){const Z=ZONES[zi],B=BIOMES[Z.ground],k=B&&B.arena&&bi
   if(k){const w0=k.im.width,h0=k.im.height,a=(cv.clientWidth||440)/(cv.clientHeight||118),w=Math.min(w0,Math.round(h0*a)),h=Math.min(h0,Math.round(w0/a)),g=cv.getContext('2d');
     cv.width=w;cv.height=h;g.imageSmoothingEnabled=false;g.drawImage(k.im,(w0-w)>>1,h0-h,w,h,0,0,w,h);
     const fog=g.createLinearGradient(0,0,0,h);fog.addColorStop(0,'rgba(0,0,0,.25)');fog.addColorStop(.6,'rgba(0,0,0,0)');fog.addColorStop(1,'rgba(0,0,0,.35)');g.fillStyle=fog;g.fillRect(0,0,w,h);return}
-  const W=440,H=118,g=cv.getContext('2d');cv.width=W;cv.height=H;g.imageSmoothingEnabled=false;
-  const sk=g.createLinearGradient(0,0,0,70);sk.addColorStop(0,Z.sky[1]);sk.addColorStop(1,Z.sky[0]);g.fillStyle=sk;g.fillRect(0,0,W,H);
+  // запасной фон из атласа: под пропорции арены — выше арена, выше небо, шире — больше леса; без растяжения
+  const as=(cv.clientWidth||440)/(cv.clientHeight||118),W=Math.max(440,Math.round(118*as)),H=Math.max(118,Math.round(W/as)),oy=H-118,g=cv.getContext('2d');cv.width=W;cv.height=H;g.imageSmoothingEnabled=false;
+  const sk=g.createLinearGradient(0,0,0,70+oy);sk.addColorStop(0,Z.sky[1]);sk.addColorStop(1,Z.sky[0]);g.fillStyle=sk;g.fillRect(0,0,W,H);
   const r=rnd(zi*977+13),tv=variants('t_'+Z.ground),wv=variants('t_water');
-  for(let row=0;row<8;row++)for(let col=-1;col<12;col++){const n=Z.water&&row<2?wv[Math.floor(r()*wv.length)]:tv[Math.floor(r()*tv.length)];drawA(g,n,col*40+(row%2?20:0),60+row*8)}
-  const kinds=Object.keys(Z.trees),objs=[];for(let k=0;k<11;k++){const kind=kinds[Math.floor(r()*kinds.length)],vv=variants(kind);objs.push([vv[Math.floor(r()*vv.length)],r()*W,66+r()*10])}
+  for(let row=0;row<8;row++)for(let col=-1;col<W/40+1;col++){const n=Z.water&&row<2?wv[Math.floor(r()*wv.length)]:tv[Math.floor(r()*tv.length)];drawA(g,n,col*40+(row%2?20:0),60+oy+row*8)}
+  const kinds=Object.keys(Z.trees),objs=[];for(let k=0;k<Math.round(11*W/440);k++){const kind=kinds[Math.floor(r()*kinds.length)],vv=variants(kind);objs.push([vv[Math.floor(r()*vv.length)],r()*W,66+oy+r()*10])}
   objs.sort((a,b)=>a[2]-b[2]).forEach(o=>drawA(g,o[0],o[1],o[2]));
   const fog=g.createLinearGradient(0,0,0,H);fog.addColorStop(0,'rgba(0,0,0,.35)');fog.addColorStop(.6,'rgba(0,0,0,0)');fog.addColorStop(1,'rgba(0,0,0,.45)');g.fillStyle=fog;g.fillRect(0,0,W,H)}

@@ -454,10 +454,9 @@ function tzView(){const o=tz&&tzObj(tz.k);if(!o||!o.p)return show(mapScreen);con
   else b=`<p>${rhyme(r.say)}</p><p class="small muted">${e.q}</p>
     <p class="${r.ok?'ok':'bad'}">${r.ok?'Верно: '+pzFa(e):(r.no?'Отказ.':`Неверно: у тебя ${r.v}.`)+` Верный ответ: ${pzEnd(pzFa(e))}`}</p>${r.gift?`<p class="gold">${r.gift}</p>`:''}
     <div id="pzsol"><button data-act="pzsol">Показать решение</button></div>`;
-  app.innerHTML=`<div class="pzcols"><div class="panel tut pz"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${tsarFace()}<div class="px small c gold">Царь</div></div><div class="bubble">${b}</div></div>
-    <div class="row" style="margin-top:12px"><span class="small muted" style="flex:1;min-width:200px">${tz.k==='day'?'Поручение дня':'Малое поручение'} · ${s.name} · ступень ${o.step+1}, ${PZ_STEP[o.step]}</span>
-    ${r?'<button data-act="pzpal">В палаты</button><button class="main" data-act="map">На карту</button>':`<button data-act="pzno">Отказаться</button><button data-act="pzlater" data-k="${tz.k}">Отложить</button>`}</div></div>
-    <div class="panel">${pzFormulas(s,1)}</div></div>`;
+  app.innerHTML=layout(`<div class="panel spk">${tsarFace()}<div class="px small gold">Царь</div><p class="small muted">${tz.k==='day'?'Поручение дня':'Малое поручение'} · ${s.name} · ступень ${o.step+1}, ${PZ_STEP[o.step]}</p>
+    <div class="row c">${r?'<button data-act="pzpal">В палаты</button><button class="main" data-act="map">На карту</button>':`<button data-act="pzno">Отказаться</button><button data-act="pzlater" data-k="${tz.k}">Отложить</button>`}</div></div>`,
+    `<div class="pzcols"><div class="panel tut pz"><div class="bubble">${b}</div></div><div class="panel">${pzFormulas(s,1)}</div></div>`,1);
   const a=$('#pzans');if(a){a.focus();a.onkeydown=ev=>{if(ev.key==='Enter')tzAnswer()}}}
 function tzAnswer(no){const o=tzObj(tz.k),e=o.p;let ok=false,v='';
   if(no){if(!confirm('Отказаться от поручения? Царь осерчает, награды не будет.'))return}
@@ -497,12 +496,12 @@ function palatyHTML(){const p=S.pz,T=tsarDay(),m=smallLive();let task;
 let pzPr=null;   // {sec, k, e: задача, res}
 function pzGo(sec,k){pzPr={sec,k,e:pzGen(sec,k),res:null};show(pzView)}
 function pzView(){const{sec,k,e,res}=pzPr,s=PZ_BY[sec];view=pzView;
-  app.innerHTML=`<div class="panel"><div class="row"><h1 style="flex:1;margin:0">${s.name}</h1><button data-act="pzpal">← В палаты</button></div>
-    <p class="small muted" style="margin:8px 0 6px">${pzCap(s.topic)} · ступень ${k+1}, ${PZ_STEP[k]}. ${PZ_HOW[k]}</p>${pzBar(sec,k)}</div>
+  app.innerHTML=layout(`<div class="panel spk bcol"><div class="row" style="flex-wrap:nowrap;width:100%"><h2 style="flex:1;margin:0">${s.name}</h2><button data-act="pzpal">← В палаты</button></div>
+    <p class="small muted">${pzCap(s.topic)} · ступень ${k+1}, ${PZ_STEP[k]}. ${PZ_HOW[k]}</p>${pzBar(sec,k)}</div>`,`
     <div class="pzcols"><div class="panel"><p class="pzq">${e.q}</p>
     ${res?`<div class="msg"><span class="${res.ok?'ok':'bad'}">${res.txt}</span></div><div class="row" style="margin-top:8px"><button class="main" data-act="pznext" id="pznext">Следующая задача</button><button data-act="pzsol">Решение</button></div><div id="pzsol"></div>`
       :`<div class="row" style="flex-wrap:nowrap"><input id="pzans" autocomplete="off" spellcheck="false" placeholder="ответ"><button class="main" data-act="pzcheck">Проверить</button></div><div class="small muted" style="margin-top:6px">${PZ_FH}</div><div class="msg" id="pzmsg"></div>`}
-    </div><div class="panel">${pzFormulas(s,1)}</div></div>`;
+    </div><div class="panel">${pzFormulas(s,1)}</div></div>`,1);
   paintAll();const a=$('#pzans');if(a){a.focus();a.onkeydown=ev=>{if(ev.key==='Enter')pzAnswer()}}else{const n=$('#pznext');if(n)n.focus()}}
 function pzAnswer(){const P=pzPr;if(!P||P.res)return;const v=$('#pzans').value;if(!v.trim())return pzMsg('Сначала впиши ответ','muted');const c=pzCheck(P.e,v);if(c.err)return pzMsg(c.err,'muted');
   pzRec(P.sec,P.k,c.ok);let txt;
@@ -524,8 +523,8 @@ function dkView(){const s=PZ_BY[dk.sec];let b;
   else b=`<p class="muted small">Тренировка ${dk.done+1} из 3 · без награды</p><p class="pzq">${dk.e.q}</p>
     <div class="row" style="flex-wrap:nowrap"><input id="pzans" autocomplete="off" spellcheck="false" placeholder="ответ"><button class="main" data-act="dkcheck">Проверить</button></div>
     <div class="small muted" style="margin-top:6px">${PZ_FH}</div><div class="msg" id="pzmsg"></div><div id="pzsol"></div>`;
-  app.innerHTML=`<div class="panel tut pz"><div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div>${DYAK_ICON}<div class="px small c gold">Дьяк</div></div><div class="bubble">${b}</div></div>
-    <div class="row" style="margin-top:12px"><span class="small muted">Урок дьяка · ${s.name}</span><span style="flex:1"></span><button data-act="dkskip">${dk.lib?'Закрыть урок':'Знаю, пропустить'}</button></div></div>`;
+  app.innerHTML=layout(`<div class="panel spk">${DYAK_ICON}<div class="px small gold">Дьяк</div><p class="small muted">Урок дьяка · ${s.name}</p><button data-act="dkskip">${dk.lib?'Закрыть урок':'Знаю, пропустить'}</button></div>`,
+    `<div class="panel tut pz"><div class="bubble">${b}</div></div>`,1);
   const a=$('#pzans');if(a){a.focus();a.onkeydown=ev=>{if(ev.key==='Enter')dkCheck()}}}
 function dkCheck(){const a=$('#pzans');if(!a.value.trim())return pzMsg('Сначала впиши ответ','muted');const c=pzCheck(dk.e,a.value);if(c.err)return pzMsg(c.err,'muted');
   if(c.ok){dk.done++;if(dk.done>=3)return dkDone();dk.e=pzGen(dk.sec,0);dkView();pzMsg(pick(DYAK_OK),'ok')}

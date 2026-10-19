@@ -65,16 +65,17 @@ const animAct=(id,kind)=>{const o=ANIM_FOR[id];return o&&kind in o?o[kind]:ANIM_
 // земля — Create tiles Pro: isometric, tile size 40, view angle 30°, depth 0. Основа сохраняется в assets/buildings/<id>.png
 const KREM_PRE='isometric game building, 2:1 dimetric view from above at 30 degrees, one corner pointing towards the viewer';
 const KREM_SUF='dark slavic folk horror, muted earthy colors, pixel art, transparent background, no ground, no people';
+const KREM_BRIGHT='slavic fairy-tale in the style of Ivan Bilibin illustrations, bright saturated folk colors, pixel art, transparent background, no ground, no people'; // уютные избы кремля
 const KREM={
 palaty:{size:128,p:'Tsar\'s stone palace (tsarskie palaty) of 17th century Russia: two-storey whitewashed stone chambers with small arched windows in carved stone frames, steep hipped roof of dark scaled shingles, a tall covered external staircase porch (krasnoe kryltso) with a tent roof at the front'},
 tserkov:{size:128,p:'white stone Russian Orthodox church in the style of Suzdal: white limestone walls with blind arcades and narrow slit windows, onion domes painted deep blue and covered with small golden stars, golden crosses on top'},
-izba:{size:85,p:'old russian log izba used as a reading house: dark weathered horizontal logs, carved wooden window frames (nalichniki), steep wooden shingle roof, small porch with steps, a wooden sign with an open book over the door'},
+izba:{size:85,bright:1,p:'fairy-tale russian log izba used as a reading house: golden honey-colored logs, richly carved window frames (nalichniki) painted red, green and gold, bright red shingle roof with a carved horse-head ridge (okhlupen), painted shutters, small porch with carved posts, a wooden sign with an open book over the door, warm light in the windows'},
 kapishche:{size:64,p:'pagan slavic shrine (kapishche): a tall carved wooden idol of Perun with a stern bearded face in the center, a ring of grey standing stones around it, a small fire burning at the idol\'s feet'},
 kuznica:{size:85,p:'old russian village blacksmith forge (kuznitsa): low dark log workshop with an open front, glowing orange furnace inside, stone chimney with smoke, anvil and a water barrel outside'},
 torg:{size:85,p:'small old russian market (torg): two or three wooden trading stalls with plank counters and shingle or canvas awnings, barrels, sacks of grain, clay jugs, rolls of cloth'},
 znaharka:{size:64,p:'herbalist witch-healer hut: small crooked log hut with a sagging mossy thatched roof, bundles of dried herbs hanging under the eaves, an animal skull on a fence post, faint green glow from a tiny window'},
-banya:{size:64,p:'small russian bathhouse (banya): tiny dark log cabin with a low turf-covered roof, a small smoking stone chimney, a woodpile and a wooden bucket beside the low door'},
-korchma:{size:85,p:'russian tavern (korchma): large two-storey dark log house with a wide covered porch, a hanging wooden sign with a jug, warm orange light in small windows, barrels by the entrance'},
+banya:{size:64,bright:1,p:'fairy-tale russian bathhouse (banya): small cabin of golden logs, door and window frames carved and painted red and green, steep shingle roof with a carved ridge, a smoking chimney, a woodpile and a wooden bucket by the low door'},
+korchma:{size:85,bright:1,p:'fairy-tale russian tavern (korchma): large two-storey house of golden logs, bright red and green carved and painted gables and window frames, tall roof with an ornate carved ridge, wide covered porch with twisted carved posts, a hanging painted sign with a jug, warm orange light in the windows, barrels by the entrance'},
 wall:{n:'Прясло — вид изнутри',size:64,note:'Стоит на двух задних сторонах кремля: видно внутреннюю сторону с распорками и боевым ходом. Наклон «/» или «\\» игра определит и отразит сама.',
   p:'straight segment of a wooden russian kremlin fortress wall seen from INSIDE the fortress: rough-hewn dark horizontal logs (gorodni), a narrow roofed fighting walkway on top covered with wooden shingles, wooden struts supporting the walkway; the segment runs diagonally from the bottom-left up to the top-right, both ends cut straight'},
 wall_out:{n:'Прясло — вид снаружи',size:64,note:'Стоит на двух передних сторонах кремля: глухая стена с бойницами, без распорок. Наклон игра определит и отразит сама.',
@@ -88,4 +89,4 @@ g_most:{n:'Мостовая',tile:1,note:'Улицы от ворот и площ
 g_road:{n:'Дорога',tile:1,note:'Дороги из ворот и тропы в зоны.',p:'muddy dirt road with wheel ruts'},
 g_posad:{n:'Посад',tile:1,note:'Полоса вокруг стен.',p:'dark trampled meadow grass with dirt patches'},
 };
-const kremText=id=>{const k=KREM[id];return k.tile?`1). ${k.p}. Dark slavic folk horror, muted earthy colors, pixel art`:`${KREM_PRE}. ${k.p}. ${KREM_SUF}`};
+const kremText=id=>{const k=KREM[id];return k.tile?`1). ${k.p}. Dark slavic folk horror, muted earthy colors, pixel art`:`${KREM_PRE}. ${k.p}. ${k.bright?KREM_BRIGHT:KREM_SUF}`};

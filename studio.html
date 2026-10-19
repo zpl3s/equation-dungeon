@@ -70,7 +70,7 @@ code{font:15px ui-monospace,Menlo,monospace;background:#0a0706;padding:1px 5px}
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
-const GROUPS=[{name:'Герои',ids:['strelets','kot'],zi:0},...ZONES.map((z,zi)=>({name:z.name,ids:[...z.mobs,z.boss],zi}))];
+const GROUPS=[{name:'Герои',ids:['strelets','kot','strelets_face','tsar'].filter(id=>ART[id]&&CR[id]),zi:0},...ZONES.map((z,zi)=>({name:z.name,ids:[...z.mobs,z.boss],zi}))];
 const ZONE_OF={};GROUPS.forEach(g=>g.ids.forEach(id=>ZONE_OF[id]=g.zi));
 const DIRS={east:'east — смотрит вправо',west:'west — смотрит влево',south:'south — смотрит на нас'};
 const KINDS={sprite:'Спрайт',idle:'Покой',attack:'Атака',spawn:'Появление'};

@@ -74,11 +74,11 @@ function paintAll(){document.querySelectorAll('canvas[data-cr]').forEach(paintCr
 ATL.addEventListener('load',()=>{MB=null;paintAll()});
 document.fonts&&document.fonts.ready.then(paintAll);
 
-// ---------- шапка: портрет, четыре нужды, предупреждения ----------
+// ---------- шапка: лицо стрельца (js/faces.js), четыре нужды, предупреждения ----------
 const NEEDS=[['sat','Сытость'],['hp','Здоровье'],['vig','Бодрость'],['spirit','Дух']];
 function hdr(){const mx=maxHP(),bar=([k,n])=>{const v=k==='hp'?S.hp:S[k],m=k==='hp'?mx:100,low=v/m<.25;
     return`<span class="px small ${low?'bad':''}">${n}</span><div class="bar ${k}"><i style="width:${v/m*100}%"></i></div><span class="small ${low?'bad':'muted'}">${v}${k==='hp'?'/'+mx:''}</span>`};
-  return`<div class="panel hdr"><div class="hrow"><div class="port">${cr('strelets',64,'','r')}</div>
+  return`<div class="panel hdr"><div class="hrow">${faceBox('strelets_face')}
     <div class="who"><h1>Стрелец и нечисть</h1><div class="px small gold">${S.name} · день ${gday()-S.born+1}</div>${statLine()}</div>
     <div class="needs">${NEEDS.map(bar).join('')}</div></div>${warns()}</div>`}
 function warns(){const w=[],d=daysLeft(),mx=maxHP();
@@ -99,7 +99,7 @@ function show(fn){view=fn;fn();window.scrollTo(0,0)}
 const mapState=()=>({hover:mapSt.hover,sel:mapSt.sel,open:zOpen});
 function mapScreen(){if(!MB&&ATL.complete)buildMap(zOpen);
   app.innerHTML=`${hdr()}${noteHTML()}
-  <div class="panel mapwrap"><canvas id="map" width="${MAP.W}" height="${MAP.H}"></canvas></div><div id="info"></div>
+  <div class="panel mapwrap"><canvas id="map" width="${MAP.W}" height="${MAP.H}"></canvas>${faceBox('tsar')}</div><div id="info"></div>
   <div class="panel"><div class="px small muted" style="margin-bottom:8px">Кремль</div><div class="row">${BLD.map(b=>`<button data-act="bld" data-id="${b.id}">${b.name}</button>`).join('')}</div></div>
   <div class="panel row"><span class="small" style="flex:1;min-width:220px">Стрельца надо навещать каждый день. Напоминание в календаре — ежедневно в</span><input type="time" id="remind" class="tm" value="${S.remind}"><button data-act="ics">Добавить в календарь</button></div>`;
   note=null;$('#remind').onchange=e=>{S.remind=e.target.value||'19:00';save()};

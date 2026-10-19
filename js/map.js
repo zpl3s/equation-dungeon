@@ -12,8 +12,8 @@ const onScreen=(x,y,m=60)=>x>-m&&x<MAP.W+m&&y>-m&&y<MAP.H+m*2;
 const RAY=k=>Math.PI/2+k*Math.PI/4; // направление на зону k (0 — вниз, дальше по часовой)
 
 // ---------- арт кремля из мастерской: assets/buildings/<id>.png; пока его нет — атлас и процедурные стены ----------
-// наклон прясла («/» или «\») игра узнаёт по самой картинке и на других сторонах отражает её; g_* — ленты плиток земли 40×20
-const FORT=['wall','tower_corner','tower_small','tower_gate'],GROUND={kreml:'t_kremlin',most:'t_road',road:'t_road',posad:'t_posad'};
+// прясла: wall — вид изнутри (задние стороны), wall_out — вид снаружи (передние); наклон «/» или «\» игра узнаёт по картинке и отражает; g_* — ленты плиток земли 40×20
+const FORT=['wall','wall_out','tower_corner','tower_small','tower_gate'],GROUND={kreml:'t_kremlin',most:'t_road',road:'t_road',posad:'t_posad'};
 const KREM_IDS=()=>[...BLD.map(b=>b.id),...FORT,...Object.keys(GROUND).map(k=>'g_'+k)];
 const KIM={};let onKremLoad=null;
 function prepK(id,im){const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);
@@ -23,7 +23,7 @@ function prepK(id,im){const c=document.createElement('canvas');c.width=im.width;
     for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]>=10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
   }catch(e){x0=y0=0;x1=c.width-1;y1=c.height-1} // file:// не даёт читать пиксели — берём холст целиком
   if(x1<0)return false;const k={im:c,x0,y0,x1,y1,ax:Math.round((x0+x1+1)/2),ay:y1+1};
-  if(id==='wall')k.slash=wallSlash(g,k);return k}
+  if(id.startsWith('wall'))k.slash=wallSlash(g,k);return k}
 // прясло «/», если верх картинки слева ниже, чем справа
 function wallSlash(g,k){const w=k.x1-k.x0+1,q=Math.max(1,Math.floor(w/4)),top=x=>{try{const d=g.getImageData(x,0,1,k.y1+1).data;for(let y=0;y<=k.y1;y++)if(d[y*4+3]>=10)return y}catch(e){}return 0};
   let l=0,r=0;for(let i=0;i<q;i++){l+=top(k.x0+i);r+=top(k.x1-i)}return l>r}
@@ -59,8 +59,8 @@ function buildMap(open){
   }
   // стены: башни по углам, ворота посередине каждой стороны, между ними малые башни, а между башнями прясла стены
   const R=MAP.R,k0=MAP.C-R,k1=MAP.C+R,K=[[k0,k0],[k1,k0],[k1,k1],[k0,k1]],at=(a,b,t)=>gp(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t);
-  for(let e=0;e<4;e++){const a=K[e],b=K[(e+1)%4],slash=e%2===1; // стороны 1 и 3 идут «/», 0 и 2 — «\»
-    for(let q=0;q<4;q++){const[px,py]=at(a,b,(q+.5)/4);objs.push({y:py,f:g=>wallSpan(g,a,b,q,px,py,slash)})}
+  for(let e=0;e<4;e++){const a=K[e],b=K[(e+1)%4],slash=e%2===1,front=e===1||e===2; // стороны 1 и 3 идут «/», 0 и 2 — «\»; 1 и 2 — передние, к нам наружной стороной
+    for(let q=0;q<4;q++){const[px,py]=at(a,b,(q+.5)/4);objs.push({y:py,f:g=>wallSpan(g,a,b,q,px,py,slash,front)})}
     [.25,.5,.75].forEach(t=>{const[px,py]=at(a,b,t);objs.push({y:py+1,f:g=>tower(g,t===.5?'tower_gate':'tower_small',px,py,slash)})})}
   K.forEach(([i,j])=>{const[px,py]=gp(i,j);objs.push({y:py+1,f:g=>tower(g,'tower_corner',px,py,false)})});
   BLD.forEach(b=>{const[px,py]=gp(MAP.C+b.at[0],MAP.C+b.at[1]);objs.push({y:py,f:g=>{const k=kimg(b.id);
@@ -81,7 +81,7 @@ function ground(g,c,x,y){const k=GROUND[c.g]&&kimg('g_'+c.g);
   if(k)return g.drawImage(k.im,Math.floor(c.v*k.n)*MAP.TW,0,MAP.TW,k.im.height,x-MAP.TW/2,y,MAP.TW,k.im.height);
   const v=variants(GROUND[c.g]||'t_'+c.g);drawA(g,v[Math.floor(c.v*v.length)],x-MAP.TW/2,y)}
 // прясло стены между башнями; короткий арт ставим несколько раз вдоль прясла. Без арта — частокол
-function wallSpan(g,a,b,q,px,py,slash){const k=kimg('wall');
+function wallSpan(g,a,b,q,px,py,slash,front){const k=front&&kimg('wall_out')||kimg('wall');
   if(k){const L=k.x1-k.x0+1,S=MAP.R*MAP.TW/4,n=Math.max(1,Math.ceil(S/(L*.75))),step=n>1?(S-L)/(n-1):0,s=slash?-1:1; // S — ширина прясла на экране
     // куски внахлёст от дальнего к ближнему: каждый следующий закрывает торец предыдущего
     for(let m=0;m<n;m++){const o=(m-(n-1)/2)*step*s;drawK(g,k,px+o,py+o*s/2,k.slash!==slash,L/4)}return}

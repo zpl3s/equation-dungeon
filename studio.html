@@ -128,10 +128,11 @@ async function scan(){granted=await perm(false);if(!granted)return;for await(con
       for await(const[n,f]of bd.entries()){const m=n.match(/^(.+)\.png$/);if(m&&PROP[m[1]])setProp(m[1],canvasOf(await createImageBitmap(await f.getFile())))}}catch(e){}
     await edLoadFolder()}}
 // варианты с сайта по списку assets/candidates/index.json (tools/candidates_manifest.py); из подключённой папки свежее — их не трогаем.
-// Файлов больше тысячи: качаем не больше 12 разом (иначе браузер отклоняет часть запросов), сначала то, что ждёт выбора; карточка обновляется, как только пришли все её варианты
+// Файлов больше тысячи: качаем не больше 12 разом (иначе браузер отклоняет часть запросов), сначала открытую вкладку; карточка обновляется, как только пришли все её варианты
 async function webCands(){let m;try{m=await(await fetch('assets/candidates/index.json?'+Date.now())).json()}catch(e){return}
   const ids=Object.keys(m).filter(id=>(ART[id]||KREM[id]||BIOME[id]||PROP[id])&&!cand[id]),got={},left={},jobs=[],base=id=>KREM[id]?KIM[id]:BIOME[id]?BIM[id]:PROP[id]?PIM[id]:pic[id];
-  ids.sort((a,b)=>!!base(a)-!!base(b)).forEach(id=>{got[id]=[];left[id]=m[id].length;m[id].forEach((f,i)=>jobs.push(async()=>{
+  const pri=id=>(({krem:KREM[id]||PROP[id],bio:BIOME[id],cr:ART[id]})[tab]?0:2)+(base(id)?1:0); // сначала открытая вкладка, в ней — то, что без основы
+  ids.sort((a,b)=>pri(a)-pri(b)).forEach(id=>{got[id]=[];left[id]=m[id].length;m[id].forEach((f,i)=>jobs.push(async()=>{
     for(let t=0;t<3&&!got[id][i];t++)try{got[id][i]=await createImageBitmap(await(await fetch(`assets/candidates/${id}/${f}`)).blob())}catch(e){}
     if(!--left[id]&&!cand[id]&&got[id].filter(Boolean).length===m[id].length){cand[id]=got[id];candReady(id)}}))});
   let i=0;await Promise.all([...Array(12)].map(async()=>{while(i<jobs.length)await jobs[i++]()}))}

@@ -10,7 +10,8 @@ const hash=(i,j)=>((i*73856093)^(j*19349663)^0x5bd1e995)>>>0;
 // жребий клетки — от её места относительно кремля, а не от номера в сетке: сетка растёт с окном, а лес остаётся тем же (при C = 24 — как было)
 const hc=(i,j)=>hash(i-MAP.C+24,j-MAP.C+24);
 // окно карты: холст в пикселях игры и сетка, которой хватает до краёв (с запасом под деревья у нижнего края). true — размер сменился, карту надо собрать заново
-function mapView(w,h){w=Math.max(200,Math.round(w));h=Math.max(150,Math.round(h));if(w===MAP.W&&h===MAP.H)return false;
+function mapView(w,h){if(!isFinite(w)||!isFinite(h))return false; // окно ещё не разложено (скрытая вкладка) — оставляем прежний размер
+  w=Math.max(200,Math.round(w));h=Math.max(150,Math.round(h));if(w===MAP.W&&h===MAP.H)return false;
   MAP.W=w;MAP.H=h;MAP.C=Math.max(24,Math.ceil(((w/2+60)/(MAP.TW/2)+(h/2+120)/(MAP.TH/2))/2)+1);MAP.N=2*MAP.C+1;return true}
 const gp=(i,j)=>[MAP.W/2+(i-j)*MAP.TW/2,MAP.H/2+(i+j-2*MAP.C)*MAP.TH/2]; // точка сетки → экран
 const onScreen=(x,y,m=60)=>x>-m&&x<MAP.W+m&&y>-m&&y<MAP.H+m*2;

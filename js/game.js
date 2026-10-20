@@ -111,6 +111,7 @@ const frontier=()=>{const k=ZONES.findIndex((_,zi)=>zOpen(zi)&&!zBeaten(zi));ret
 const DESK=()=>innerWidth>=900;
 function fitMap(){const w=$('.mapwrap'),c=$('#map');if(!w||!c)return false;let cw,ch;
   if(DESK()){cw=w.clientWidth;ch=w.clientHeight}else{cw=w.clientWidth;ch=Math.round(cw*560/880)}
+  if(!cw||!ch)return false; // контейнер ещё нулевой: не делим на ноль
   let k=Math.floor(Math.min(cw/880,ch/560));if(k<1)k=Math.min(cw/880,ch/560);
   const ch2=mapView(cw/k,ch/k);if(ch2)MB=null;if(c.width!==MAP.W||c.height!==MAP.H){c.width=MAP.W;c.height=MAP.H}
   c.style.width=Math.round(MAP.W*k)+'px';c.style.height=Math.round(MAP.H*k)+'px';

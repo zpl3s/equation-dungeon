@@ -33,7 +33,7 @@ b_pole_arena:{kind:'arena',w:170,h:56,n:'Фон боя на Поле',tool:BIO_I
 // objs — что стоит на клетке и с какой вероятностью (пока ни одна основа не выбрана — старые деревья из атласа); ponds — пруды (точка сетки от центра, радиус)
 const BIOMES={
 field:{ground:'b_pole_ground',sets:{}, // наборы переходов Поля пользователь не взял: края ромбами
-  objs:{b_pole_bushes:.07,b_pole_trees:.018,b_pole_snop:.035,b_pole_kamni:.02,b_pole_pugalo:.008},ponds:[[12.6,13,1.8]],arena:'b_pole_arena'},
+  objs:{b_pole_bushes:.07,b_pole_trees:.018,b_pole_snop:.035,b_pole_kamni:.02,b_pole_pugalo:.008},ponds:[[19,15,1.8]],arena:'b_pole_arena'},
 };
 const BIO_WATER='b_pole_water',BIO_SHORE=null; // вода — для всех водоёмов карты; BIO_SHORE — набор переходов, чьи маски дают форму берега (без него вода поклеточно)
 const BIO_IDS=Object.keys(BIOME);
@@ -44,7 +44,9 @@ function prepB(id,im){const B=BIOME[id],c=document.createElement('canvas');c.wid
   if(B.kind==='tiles')return{im:c,n:Math.max(1,Math.round(c.width/MAP.TW))};
   if(B.kind==='set')return{im:c,m:bioMasks(g),cache:{}};
   if(B.kind==='arena')return{im:c};
-  const f=c.height,n=Math.max(1,Math.round(c.width/f)),fr=[]; // obj: кадры f×f в ряд, у каждого якорь — низ видимой части по центру
+  return stripFrames(c)}
+// лента предметов: кадры f×f в ряд (f — высота), у каждого якорь — низ видимой части по центру; так же лежат мелочи кремля (assets/props)
+function stripFrames(c){const g=c.getContext('2d'),f=c.height,n=Math.max(1,Math.round(c.width/f)),fr=[];
   for(let k=0;k<n;k++){let x0=1e9,y0=1e9,x1=-1,y1=-1;
     try{const d=g.getImageData(k*f,0,f,f).data;for(let y=0;y<f;y++)for(let x=0;x<f;x++)if(d[(y*f+x)*4+3]>=10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
     catch(e){x0=y0=0;x1=y1=f-1}

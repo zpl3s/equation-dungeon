@@ -163,6 +163,19 @@ table.tight td,table.tight th{padding:4px 6px}
 @media (max-width:640px){.btitle .row{flex-wrap:wrap!important}}
 @media (max-width:640px){.pz .bubble{flex-basis:100%}}
 /* компьютер: всё на одном экране без прокрутки. Шапка и заголовки — по содержимому, главный блок (.fill) забирает остаток высоты */
+/* итог поручения царя и освоенная ступень: плашка с печатью, награда, что открылось, кнопки под результатом */
+.plate{display:flex;align-items:center;gap:16px;padding:12px 18px;margin:0 0 14px;background:#2a1a10;border:2px solid var(--gold);box-shadow:inset 0 0 0 2px #000a,3px 3px 0 #0008}
+.plate .pt{font:400 30px/1.15 'Ruslan Display',Georgia,serif;color:var(--gold);text-shadow:2px 2px 0 #000}
+.plate.bad{border-color:#8a2a1a;background:#1e1210}.plate.bad .pt{color:var(--bad)}
+svg.seal{width:64px;height:64px;flex:none;filter:drop-shadow(2px 2px 0 #000a)}
+.reward{font-size:20px;color:var(--gold);margin:4px 0}.reward b{font-size:24px}
+.opened{margin:8px 0;padding:8px 12px;border-left:3px solid var(--ok);background:#1c2412}
+.tzbtn{margin-top:14px}.tzres .sol{margin:10px 0}.tzres{max-width:none}
+@media (min-width:900px){.tzres .sol ol{column-count:2;column-gap:32px}.tzres .sol li{break-inside:avoid}}
+/* царь на экране поручения говорит под лицом, стрелкой вверх */
+.f-tsar2 .say{left:50%;transform:translateX(-50%);top:calc(100% + 12px);max-width:min(330px,calc(100vw - 44px))}
+.f-tsar2 .say::before{left:calc(50% - 8px);top:-12px;border-width:0 8px 12px;border-color:transparent transparent #8a6a3a}
+.f-tsar2 .say::after{left:calc(50% - 6px);top:-9px;border-width:0 6px 10px;border-color:transparent transparent #efe3c8}
 /* компьютер: экран заполнен целиком, без пустот и прокрутки. Слева колонка (стрелец и панель экрана), справа главное до краёв; шире 1920 — по центру */
 @media (min-width:900px){
   #app{max-width:1920px;height:100vh;display:flex;flex-direction:column;gap:6px;padding:6px}

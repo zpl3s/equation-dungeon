@@ -100,7 +100,7 @@ const IDLE={t:Date.now(),n:0},TK={next:0,last:0};let greet=undefined,prevNeeds=n
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return seenSet();if(now()-seenGet()>3*36e5)greet=greetKind()});
 addEventListener('pagehide',seenSet);
 document.addEventListener('click',e=>{const c=e.target.closest('canvas.face');if(!c||saying())return;
-  if(c.dataset.face==='tsar')talk(true);else{const n=needs();n.length&&Math.random()<.7?needLine(n):say('strelets',line('idle'))}});
+  if(c.dataset.face==='tsar'){if(document.getElementById('map'))talk(true)}else{const n=needs();n.length&&Math.random()<.7?needLine(n):say('strelets',line('idle'))}});
 function faceTick(){if(typeof S==='undefined')return;             // game.js ещё грузится
   const t=Date.now(),hidden=document.hidden;
   if(greet===undefined){greet=greetKind();seenSet()}                 // первый тик: игра уже загружена
@@ -116,7 +116,7 @@ function faceTick(){if(typeof S==='undefined')return;             // game.js е�
   if(SPK.cur&&(t>=SPK.end||SPK.cur.stay&&!here(SPK.cur))){const it=SPK.cur;SPK.cur=null;SPK.gap=t+500;if(!SPK.q.length)FS.tsar.st='neutral';if(it.stay&&it.gone)it.gone()}
   while(!SPK.cur&&SPK.q.length&&t>=SPK.gap){const it=SPK.q.shift();if(!here(it)){if(it.grp)SPK.q=SPK.q.filter(x=>x.grp!==it.grp);if(it.gone)it.gone();continue}
     const d=2600+it.text.length*55;SPK.cur=it;SPK.talk=t+d;SPK.end=it.stay?Infinity:t+d;if(it.who==='tsar')FS.tsar.st=it.m||'neutral';if(it.fn)it.fn()}
-  const sb=box('strelets'),tb=box('tsar');
+  const sb=box('strelets'),tb=document.getElementById('map')&&box('tsar');   // царь болтает и даёт поручения только над картой
   if(sb&&!hidden){const n=needs();
     if(greet){say('strelets',line(greet));if(n.length)needLine(n);greet=null;prevNeeds=n}
     else if(prevNeeds){const f=n.filter(x=>!prevNeeds.includes(x));prevNeeds=n;if(f.length&&t>needCd&&!saying()){needLine(f);needCd=t+2e4}}  // появилась новая нужда

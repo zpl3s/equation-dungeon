@@ -344,8 +344,11 @@ function pCardHTML(id){const P=PROP[id],k=PIM[id],n=cand[id]&&cand[id].length;
 // превью: одобренные кадры в ряд на земле посада, ×2
 function pPaint(id){const c=$('#ppv_'+id);if(!c)return;const g=c.getContext('2d'),k=PIM[id];g.imageSmoothingEnabled=false;g.fillStyle='#1b1610';g.fillRect(0,0,c.width,c.height);if(!k)return;
   let x=6;k.fr.forEach(f=>{const s=f.h*2>c.height-8?1:2;if(x+f.w*s>c.width)return;g.drawImage(k.im,f.sx+f.x0,f.y0,f.w,f.h,x,c.height-6-f.h*s,f.w*s,f.h*s);x+=f.w*s+6})}
-function pCands(id){const box=$('#pcd_'+id);if(!box)return;box.innerHTML='';const sc=PROP[id].size<=24?3:2;
-  cand[id].forEach((b,i)=>{const c=document.createElement('canvas'),g=c.getContext('2d');c.width=b.width*sc;c.height=b.height*sc;c.className='cand'+((psel[id]||[]).includes(i)?' on':'');c.title='Вариант '+(i+1);
+// сколько вариантов Pro даёт за вызов на таком холсте: по этому числу варианты делятся на пачки (перегенерация добавляет следующую)
+const pBatch=id=>{const z=PROP[id].size;return z<=32?64:z<=35?49:z<=41?36:z<=50?25:z<=64?16:z<85?9:z===85?16:4};
+function pCands(id){const box=$('#pcd_'+id);if(!box)return;box.innerHTML='';const sc=PROP[id].size<=24?3:2,B=pBatch(id);
+  cand[id].forEach((b,i)=>{if(cand[id].length>B&&i%B===0){const l=document.createElement('div');l.className='batch';l.textContent='Пачка '+(i/B+1)+((PROP[id].batches||[])[i/B]?' — '+PROP[id].batches[i/B]:'');box.appendChild(l)}
+    const c=document.createElement('canvas'),g=c.getContext('2d');c.width=b.width*sc;c.height=b.height*sc;c.className='cand'+((psel[id]||[]).includes(i)?' on':'');c.title='Вариант '+(i+1);
     g.imageSmoothingEnabled=false;g.fillStyle='#120d09';g.fillRect(0,0,c.width,c.height);g.drawImage(b,0,0,c.width,c.height);
     c.onclick=()=>{const s=psel[id]||(psel[id]=[]),k=s.indexOf(i);if(k<0)s.push(i);else s.splice(k,1);c.classList.toggle('on',k<0);$('#pn_'+id).textContent='отмечено '+s.length};box.appendChild(c)})}
 
